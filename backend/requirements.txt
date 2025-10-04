@@ -1,0 +1,31 @@
+# Core dependencies
+fastapi==0.109.2
+uvicorn[standard]==0.24.0
+pydantic==2.9.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+redis==5.0.1
+structlog==23.2.0
+supabase==1.0.3
+python-jose[cryptography]
+passlib[bcrypt] 
+
+# Extended Exchange integration
+httpx==0.23.3
+aiohttp>=3.10.11
+x10-python-trading-starknet==0.0.5
+
+# Cryptography and security
+cryptography>=45.0.0
+# starknet-py==0.21.0  # Temporarily commented out - using fallback implementations
+
+# Structured logging
+structlog==23.2.0
+
+# Image upload
+cloudinary==1.36.0
+Pillow==10.1.0
+python-multipart==0.0.6 
