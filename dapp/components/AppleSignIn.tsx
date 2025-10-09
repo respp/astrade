@@ -1,16 +1,16 @@
 import React from 'react'
 import { View, StyleSheet, ViewStyle, Platform } from 'react-native'
-import { SignInWithApple, CavosWallet } from 'cavos-service-native'
+import { SignInWithApple as MockSignInWithApple, CavosWallet as MockCavosWallet } from '@/lib/cavos-mock'
 
 interface AppleSignInProps {
-  onSuccess?: (wallet: CavosWallet) => void
+  onSuccess?: (wallet: MockCavosWallet) => void
   onError?: (error: any) => void
   style?: ViewStyle | ViewStyle[]
 }
 
 export default function AppleSignIn({ onSuccess, onError, style }: AppleSignInProps) {
-  const handleSuccess = (wallet: CavosWallet) => {
-    console.log('✅ Apple login successful:', wallet)
+  const handleSuccess = (wallet: MockCavosWallet) => {
+    console.log('✅ Apple login successful (Mock):', wallet)
     console.log('Wallet address:', wallet.address)
     console.log('Network:', wallet.network)
     console.log('User email:', wallet.email)
@@ -40,16 +40,16 @@ export default function AppleSignIn({ onSuccess, onError, style }: AppleSignInPr
 
   return (
     <View style={[styles.container, style]}>
-      <SignInWithApple
-        appId={process.env.EXPO_PUBLIC_CAVOS_APP_ID!}
+      <MockSignInWithApple
+        orgToken="mock-org-token"
         network={process.env.EXPO_PUBLIC_CAVOS_NETWORK || "sepolia"}
         finalRedirectUri={getRedirectUri()}
         onSuccess={handleSuccess}
         onError={handleError}
         style={styles.button}
       >
-        Continue with Apple
-      </SignInWithApple>
+        Continue with Apple (Mock)
+      </MockSignInWithApple>
     </View>
   )
 }
