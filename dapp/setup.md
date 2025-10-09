@@ -21,7 +21,17 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 Or update `lib/supabase.ts` directly with your credentials.
 
-### 3. Authentication Setup
+### 3. npm Configuration
+
+The project has a `.npmrc` file configured with `legacy-peer-deps=true` to handle React 19 compatibility conflicts with some dependencies (lucide-react-native).
+
+This file is already created, but if you delete it or work in another environment, you'll need to recreate it:
+
+```bash
+echo "legacy-peer-deps=true" > .npmrc
+```
+
+### 4. Authentication Setup
 
 The app includes:
 - **Login/Signup Screen**: Complete authentication flow
@@ -29,7 +39,7 @@ The app includes:
 - **User Context**: Global authentication state management
 - **Logout Functionality**: Available in the profile tab
 
-### 4. Running the App
+### 5. Running the App
 
 ```bash
 npm install
