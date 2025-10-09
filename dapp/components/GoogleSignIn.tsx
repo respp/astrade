@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, StyleSheet, ViewStyle, Platform, Alert, Text } from 'react-native'
-import { SignInWithGoogle, CavosWallet } from 'cavos-service-native'
+import { SignInWithGoogle as MockSignInWithGoogle, CavosWallet as MockCavosWallet } from '@/lib/cavos-mock'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 
@@ -8,14 +8,14 @@ import * as Linking from 'expo-linking'
 WebBrowser.maybeCompleteAuthSession()
 
 interface GoogleSignInProps {
-  onSuccess?: (wallet: CavosWallet) => void
+  onSuccess?: (wallet: MockCavosWallet) => void
   onError?: (error: any) => void
   style?: ViewStyle | ViewStyle[]
 }
 
 export default function GoogleSignIn({ onSuccess, onError, style }: GoogleSignInProps) {
-  const handleSuccess = (wallet: CavosWallet) => {
-    console.log('✅ Google login successful:', wallet)
+  const handleSuccess = (wallet: MockCavosWallet) => {
+    console.log('✅ Google login successful (Mock):', wallet)
     console.log('Wallet address:', wallet.address)
     console.log('Network:', wallet.network)
     console.log('User email:', wallet.email)
@@ -86,16 +86,16 @@ export default function GoogleSignIn({ onSuccess, onError, style }: GoogleSignIn
 
   return (
     <View style={[styles.container, style]}>
-      <SignInWithGoogle
-        appId={appId}
+      <MockSignInWithGoogle
+        orgToken="mock-org-token"
         network={network}
         finalRedirectUri={redirectUri}
         onSuccess={handleSuccess}
         onError={handleError}
         style={styles.button}
       >
-        Continue with Google
-      </SignInWithGoogle>
+        Continue with Google (Mock)
+      </MockSignInWithGoogle>
     </View>
   )
 }
