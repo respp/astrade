@@ -311,4 +311,56 @@ export interface StreakInfo {
   galaxy_explorer_days: number;
   can_claim_today: boolean;
   next_reward_in: string;
-} 
+}
+
+// Registration and Login Types
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  network: 'sepolia' | 'mainnet';
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+  network: 'sepolia' | 'mainnet';
+}
+
+export interface AuthResponse {
+  // Direct fields (actual Cavos API response)
+  user_id: string;
+  email: string;
+  organization?: {
+    id: string;
+    name?: string;
+  };
+  wallet: {
+    address: string;
+    network: string;
+    deployed?: boolean;
+  };
+  authData?: {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
+  // Alternative fields (documentation format)
+  user?: {
+    email: string;
+    name: string;
+    created_at: string;
+  };
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+}
+
+// Wrapped response format from Cavos API
+export interface CavosApiResponse<T> {
+  success: boolean;
+  data: T;
+  message: string;
+}
+
+export type RegisterResponse = AuthResponse;
+export type LoginResponse = AuthResponse; 
