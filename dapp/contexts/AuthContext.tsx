@@ -3,6 +3,7 @@ import { secureStorage } from '../lib/secure-storage'
 import { accountService, CreateUserResponse, CreateUserRequest } from '../lib/api/services/account'
 import { ApiError } from '../lib/api/client'
 import { CavosWallet } from 'cavos-service-native'
+import { RegisterRequest, LoginRequest, AuthResponse } from '../lib/api/types'
 
 interface AuthContextType {
   userId: string | null // Cavos user ID
@@ -11,6 +12,8 @@ interface AuthContextType {
   loading: boolean
   authenticated: boolean
   createUser: (provider: 'apple' | 'google', userData?: any) => Promise<{ success: boolean; error?: string }>
+  registerWithEmail: (registerData: RegisterRequest) => Promise<any>
+  loginWithEmail: (loginData: LoginRequest) => Promise<any>
   setWallet: (wallet: CavosWallet) => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
@@ -329,6 +332,210 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
+  // Register with email and password
+  const registerWithEmail = useCallback(async (registerData: RegisterRequest): Promise<any> => {
+    try {
+      setLoading(true)
+      
+      console.log('📧 Starting email registration:', registerData.email)
+      
+      // Step 1: Register with Cavos API
+      const authResponse = await accountService.registerWithCavos(registerData)
+      console.log('✅ Cavos registration successful:', authResponse)
+      console.log('📊 Response structure analysis:', {
+        hasUser: !!authResponse.user,
+        hasWallet: !!authResponse.wallet,
+        hasUserId: !!authResponse.user_id,
+        hasEmail: !!authResponse.email,
+        hasAccessToken: !!authResponse.access_token,
+        userKeys: authResponse.user ? Object.keys(authResponse.user) : 'no user',
+        walletKeys: authResponse.wallet ? Object.keys(authResponse.wallet) : 'no wallet',
+        responseKeys: Object.keys(authResponse)
+      })
+      
+      // Validate response structure - handle both expected and actual formats
+      if (!authResponse.wallet || !authResponse.wallet.address) {
+        console.error('❌ Invalid response structure - missing wallet.address:', authResponse)
+        throw new Error('Invalid response from Cavos API - missing wallet information')
+      }
+      
+      // Get email from either user.email or direct email field
+      const userEmail = authResponse.user?.email || authResponse.email
+      if (!userEmail) {
+        console.error('❌ Invalid response structure - missing email:', authResponse)
+        throw new Error('Invalid response from Cavos API - missing email information')
+      }
+      
+      // Step 2: Create a mock CavosWallet-like object for consistency
+      const mockWallet = {
+        address: authResponse.wallet.address,
+        network: authResponse.wallet.network,
+        email: userEmail,
+        user_id: authResponse.user_id,
+        org_id: authResponse.organization?.id || 'cavos-org',
+        access_token: authResponse.access_token || authResponse.authData?.access_token,
+        refresh_token: authResponse.refresh_token || authResponse.authData?.refresh_token,
+        expires_in: authResponse.expires_in || authResponse.authData?.expires_in,
+        execute: async (contractAddress: string, method: string, params: any[]) => {
+          console.log('Executing transaction:', { contractAddress, method, params })
+          return { success: true, hash: 'mock-hash' }
+        }
+      }
+      
+      // Step 3: Create user in backend
+      const createUserRequest: CreateUserRequest = {
+        provider: 'google', // Using 'google' as provider for email auth
+        email: userEmail,
+        cavos_user_id: authResponse.user_id,
+        wallet_address: authResponse.wallet.address
+      }
+      
+      try {
+        console.log('📤 Creating backend user:', createUserRequest)
+        const backendUser = await accountService.createUser(createUserRequest)
+        console.log('✅ Backend user created:', backendUser)
+        
+        // Store backend user ID
+        if (backendUser && backendUser.user_id) {
+          await secureStorage.setItemAsync(BACKEND_USER_ID_KEY, backendUser.user_id)
+          setBackendUserId(backendUser.user_id)
+          accountService.setUserId(backendUser.user_id)
+        }
+      } catch (createError) {
+        console.warn('⚠️ Failed to create backend user, continuing with registration:', createError)
+      }
+      
+      // Step 4: Store authentication data
+      await secureStorage.setItemAsync(USER_ID_KEY, authResponse.user_id)
+      
+      const walletInfo = {
+        address: authResponse.wallet.address,
+        network: authResponse.wallet.network,
+        email: userEmail,
+        userId: authResponse.user_id,
+        orgId: 'cavos-org',
+        accessToken: authResponse.access_token,
+        refreshToken: authResponse.refresh_token
+      }
+      await secureStorage.setItemAsync(CAVOS_WALLET_KEY, JSON.stringify(walletInfo))
+      
+      // Step 5: Update state
+      setUserId(authResponse.user_id)
+      setAuthenticated(true)
+      
+      console.log('🎉 Email registration complete')
+      return mockWallet
+    } catch (error) {
+      console.error('❌ Email registration failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Login with email and password
+  const loginWithEmail = useCallback(async (loginData: LoginRequest): Promise<any> => {
+    try {
+      setLoading(true)
+      
+      console.log('📧 Starting email login:', loginData.email)
+      
+      // Step 1: Login with Cavos API
+      const authResponse = await accountService.loginWithCavos(loginData)
+      console.log('✅ Cavos login successful:', authResponse)
+      console.log('📊 Login response structure analysis:', {
+        hasUser: !!authResponse.user,
+        hasWallet: !!authResponse.wallet,
+        hasUserId: !!authResponse.user_id,
+        hasEmail: !!authResponse.email,
+        hasAccessToken: !!authResponse.access_token,
+        userKeys: authResponse.user ? Object.keys(authResponse.user) : 'no user',
+        walletKeys: authResponse.wallet ? Object.keys(authResponse.wallet) : 'no wallet',
+        responseKeys: Object.keys(authResponse)
+      })
+      
+      // Validate response structure - handle both expected and actual formats
+      if (!authResponse.wallet || !authResponse.wallet.address) {
+        console.error('❌ Invalid login response structure - missing wallet.address:', authResponse)
+        throw new Error('Invalid response from Cavos API - missing wallet information')
+      }
+      
+      // Get email from either user.email or direct email field
+      const userEmail = authResponse.user?.email || authResponse.email
+      if (!userEmail) {
+        console.error('❌ Invalid login response structure - missing email:', authResponse)
+        throw new Error('Invalid response from Cavos API - missing email information')
+      }
+      
+      // Step 2: Create a mock CavosWallet-like object for consistency
+      const mockWallet = {
+        address: authResponse.wallet.address,
+        network: authResponse.wallet.network,
+        email: userEmail,
+        user_id: authResponse.user_id,
+        org_id: authResponse.organization?.id || 'cavos-org',
+        access_token: authResponse.access_token || authResponse.authData?.access_token,
+        refresh_token: authResponse.refresh_token || authResponse.authData?.refresh_token,
+        expires_in: authResponse.expires_in || authResponse.authData?.expires_in,
+        execute: async (contractAddress: string, method: string, params: any[]) => {
+          console.log('Executing transaction:', { contractAddress, method, params })
+          return { success: true, hash: 'mock-hash' }
+        }
+      }
+      
+      // Step 3: Check if user exists in backend, create if not
+      try {
+        let backendUser = await accountService.getUserByCavosId(authResponse.user_id)
+        
+        if (!backendUser) {
+          console.log('🚀 Creating backend user for existing Cavos user')
+          const createUserRequest: CreateUserRequest = {
+            provider: 'google',
+            email: userEmail,
+            cavos_user_id: authResponse.user_id,
+            wallet_address: authResponse.wallet.address
+          }
+          
+          backendUser = await accountService.createUser(createUserRequest)
+        }
+        
+        if (backendUser && backendUser.user_id) {
+          await secureStorage.setItemAsync(BACKEND_USER_ID_KEY, backendUser.user_id)
+          setBackendUserId(backendUser.user_id)
+          accountService.setUserId(backendUser.user_id)
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend user setup failed, continuing with login:', backendError)
+      }
+      
+      // Step 4: Store authentication data
+      await secureStorage.setItemAsync(USER_ID_KEY, authResponse.user_id)
+      
+      const walletInfo = {
+        address: authResponse.wallet.address,
+        network: authResponse.wallet.network,
+        email: userEmail,
+        userId: authResponse.user_id,
+        orgId: 'cavos-org',
+        accessToken: authResponse.access_token,
+        refreshToken: authResponse.refresh_token
+      }
+      await secureStorage.setItemAsync(CAVOS_WALLET_KEY, JSON.stringify(walletInfo))
+      
+      // Step 5: Update state
+      setUserId(authResponse.user_id)
+      setAuthenticated(true)
+      
+      console.log('🎉 Email login complete')
+      return mockWallet
+    } catch (error) {
+      console.error('❌ Email login failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   // Refresh user (re-check stored user)
   const refreshUser = useCallback(async () => {
     await checkExistingUser()
@@ -341,6 +548,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     authenticated: authenticated || !!userId,
     createUser,
+    registerWithEmail,
+    loginWithEmail,
     setWallet,
     signOut,
     refreshUser,
