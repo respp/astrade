@@ -15,6 +15,8 @@ import { router } from 'expo-router'
 import { createShadow, shadowPresets } from '../lib/platform-styles'
 import AppleSignIn from '../components/AppleSignIn'
 import GoogleSignIn from '../components/GoogleSignIn'
+import EmailSignIn from '../components/EmailSignIn'
+import EmailSignUp from '../components/EmailSignUp'
 import SpaceBackground from '../components/SpaceBackground'
 
 import { CavosWallet } from 'cavos-service-native'
@@ -22,6 +24,7 @@ import { CavosWallet } from 'cavos-service-native'
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [authStep, setAuthStep] = useState<string>('')
+  const [authMode, setAuthMode] = useState<'social' | 'email-login' | 'email-register'>('social')
   const { createUser, setWallet, signOut, authenticated, userId } = useAuth()
   const isProcessing = useRef(false)
 
@@ -159,17 +162,81 @@ export default function LoginScreen() {
 
             {!loading && (
               <>
-                <GoogleSignIn 
-                  onSuccess={handleAuthSuccess}
-                  onError={handleAuthError}
-                  style={[styles.authButton, createShadow(shadowPresets.medium)]}
-                />
-                
-                <AppleSignIn 
-                  onSuccess={handleAuthSuccess}
-                  onError={handleAuthError}
-                  style={[styles.authButton, createShadow(shadowPresets.medium)]}
-                />
+                {authMode === 'social' && (
+                  <>
+                    {/* <GoogleSignIn 
+                      onSuccess={handleAuthSuccess}
+                      onError={handleAuthError}
+                      style={[styles.authButton, createShadow(shadowPresets.medium)]}
+                    />
+                    
+                    <AppleSignIn 
+                      onSuccess={handleAuthSuccess}
+                      onError={handleAuthError}
+                      style={[styles.authButton, createShadow(shadowPresets.medium)]}
+                    /> */}
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('email-login')}
+                    >
+                      <Text style={styles.modeToggleText}>Sign in with Email</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('email-register')}
+                    >
+                      <Text style={styles.modeToggleText}>Create Account with Email</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {authMode === 'email-login' && (
+                  <>
+                    <EmailSignIn 
+                      onSuccess={handleAuthSuccess}
+                      onError={handleAuthError}
+                    />
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('social')}
+                    >
+                      <Text style={styles.modeToggleText}>Back to Social Login</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('email-register')}
+                    >
+                      <Text style={styles.modeToggleText}>Don't have an account? Sign up</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {authMode === 'email-register' && (
+                  <>
+                    <EmailSignUp 
+                      onSuccess={handleAuthSuccess}
+                      onError={handleAuthError}
+                    />
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('social')}
+                    >
+                      <Text style={styles.modeToggleText}>Back to Social Login</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.modeToggle}
+                      onPress={() => setAuthMode('email-login')}
+                    >
+                      <Text style={styles.modeToggleText}>Already have an account? Sign in</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </>
             )}
           </View>
@@ -256,5 +323,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  modeToggle: {
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  modeToggleText: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 }) 
