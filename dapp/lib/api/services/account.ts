@@ -4,7 +4,13 @@ import {
   Position, 
   AccountSummary, 
   AccountFees,
-  LeverageSettings 
+  LeverageSettings,
+  RegisterRequest,
+  RegisterResponse,
+  LoginRequest,
+  LoginResponse,
+  AuthResponse,
+  CavosApiResponse
 } from '../types';
 
 // User creation request type
@@ -22,6 +28,185 @@ export interface CreateUserResponse {
 }
 
 export class AccountService {
+  private getCavosConfig() {
+    const CAVOS_BASE_URL = 'https://services.cavos.xyz/api/v1/external';
+    const HASH_SECRET = process.env.EXPO_PUBLIC_CAVOS_APP_ID || '';
+    
+    if (!HASH_SECRET) {
+      throw new Error('Cavos hash secret not configured');
+    }
+
+    return { CAVOS_BASE_URL, HASH_SECRET };
+  }
+
+  // Test API endpoint availability
+  async testCavosConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { CAVOS_BASE_URL, HASH_SECRET } = this.getCavosConfig();
+      
+      console.log('🧪 Testing Cavos API connection...');
+      console.log('📍 Base URL:', CAVOS_BASE_URL);
+      console.log('🔑 Hash Secret (first 10 chars):', HASH_SECRET.substring(0, 10) + '...');
+      
+      // Try a simple request to see if the endpoint exists
+      const testUrl = `${CAVOS_BASE_URL}/auth/register`;
+      
+      const response = await fetch(testUrl, {
+        method: 'OPTIONS', // Use OPTIONS to test endpoint availability
+        headers: {
+          'Authorization': `Bearer ${HASH_SECRET}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log('🧪 Connection test response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      return {
+        success: true,
+        message: `API endpoint accessible (status: ${response.status})`
+      };
+    } catch (error) {
+      console.error('🧪 Connection test failed:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        message: `Connection test failed: ${errorMessage}`
+      };
+    }
+  }
+
+  // Register a new user with email and password via Cavos API
+  async registerWithCavos(registerData: RegisterRequest): Promise<AuthResponse> {
+    const { CAVOS_BASE_URL, HASH_SECRET } = this.getCavosConfig();
+
+    const url = `${CAVOS_BASE_URL}/auth/register`;
+    const requestBody = JSON.stringify(registerData);
+    
+    console.log('🔍 Cavos Registration Request:', {
+      url,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HASH_SECRET.substring(0, 10)}...`,
+        'Content-Type': 'application/json',
+      },
+      body: registerData
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HASH_SECRET}`,
+        'Content-Type': 'application/json',
+      },
+      body: requestBody
+    });
+
+    console.log('📥 Cavos Registration Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      let errorText = '';
+      
+      try {
+        errorData = await response.json();
+        console.log('❌ Cavos Registration Error Data:', errorData);
+      } catch (jsonError) {
+        try {
+          errorText = await response.text();
+          console.log('❌ Cavos Registration Error Text:', errorText);
+        } catch (textError) {
+          console.log('❌ Could not parse error response');
+        }
+      }
+      
+      const errorMessage = (errorData as any).message || errorText || `Registration failed with status ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData: CavosApiResponse<AuthResponse> = await response.json();
+    console.log('✅ Cavos Registration Success:', responseData);
+    
+    // Handle wrapped response format
+    if (responseData.success && responseData.data) {
+      console.log('📦 Unwrapping response data:', responseData.data);
+      return responseData.data;
+    }
+    
+    throw new Error('Invalid response format from Cavos API');
+  }
+
+  // Login with email and password via Cavos API
+  async loginWithCavos(loginData: LoginRequest): Promise<AuthResponse> {
+    const { CAVOS_BASE_URL, HASH_SECRET } = this.getCavosConfig();
+
+    const url = `${CAVOS_BASE_URL}/auth/login`;
+    const requestBody = JSON.stringify(loginData);
+    
+    console.log('🔍 Cavos Login Request:', {
+      url,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HASH_SECRET.substring(0, 10)}...`,
+        'Content-Type': 'application/json',
+      },
+      body: loginData
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${HASH_SECRET}`,
+        'Content-Type': 'application/json',
+      },
+      body: requestBody
+    });
+
+    console.log('📥 Cavos Login Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
+    if (!response.ok) {
+      let errorData = {};
+      let errorText = '';
+      
+      try {
+        errorData = await response.json();
+        console.log('❌ Cavos Login Error Data:', errorData);
+      } catch (jsonError) {
+        try {
+          errorText = await response.text();
+          console.log('❌ Cavos Login Error Text:', errorText);
+        } catch (textError) {
+          console.log('❌ Could not parse error response');
+        }
+      }
+      
+      const errorMessage = (errorData as any).message || errorText || `Login failed with status ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    const responseData: CavosApiResponse<AuthResponse> = await response.json();
+    console.log('✅ Cavos Login Success:', responseData);
+    
+    // Handle wrapped response format
+    if (responseData.success && responseData.data) {
+      console.log('📦 Unwrapping login response data:', responseData.data);
+      return responseData.data;
+    }
+    
+    throw new Error('Invalid response format from Cavos API');
+  }
+
   // Create a new user with complete data from Cavos authentication
   async createUser(userData: CreateUserRequest): Promise<CreateUserResponse> {
     const response = await apiClient.post<CreateUserResponse>(
