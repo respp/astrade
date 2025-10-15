@@ -1,11 +1,5 @@
-// Cavos wallet type definition (since we don't have the actual SDK)
-export interface CavosWallet {
-  address: string
-  network: string
-  email: string
-  user_id: string
-  execute: (contractAddress: string, method: string, params: any[]) => Promise<any>
-}
+// Import the real CavosWallet from the SDK
+import { CavosWallet } from 'cavos-service-native'
 
 // Cavos authentication configuration
 export const CAVOS_CONFIG = {
@@ -24,20 +18,39 @@ export class CavosAuth {
       console.log('🔐 Creating Cavos user with provider:', provider)
       console.log('📊 User data:', userData)
       
-      // This would typically use the Cavos SDK to create a wallet
-      // For now, we'll return a mock wallet with the provided data
-      const wallet: CavosWallet = {
-        address: userData.address || '0x' + Math.random().toString(16).substr(2, 40),
-        network: userData.network || 'sepolia',
-        email: userData.email,
-        user_id: userData.user_id,
-        execute: async (contractAddress: string, method: string, params: any[]) => {
-          console.log('Executing transaction:', { contractAddress, method, params })
-          return { success: true, hash: 'mock-hash-' + Date.now() }
-        }
-      } as any
+      // Validate that we have real authentication tokens
+      // For development, create mock tokens if not provided
+      let accessToken = userData.access_token;
+      let refreshToken = userData.refresh_token;
       
-      console.log('✅ Cavos wallet created:', wallet)
+      if (!accessToken || !refreshToken) {
+        console.warn('⚠️ Authentication tokens not found. Creating mock tokens for development.');
+        accessToken = `mock_access_token_${Date.now()}`;
+        refreshToken = `mock_refresh_token_${Date.now()}`;
+      }
+
+      // Get organization ID from environment or user data
+      const orgId = process.env.EXPO_PUBLIC_CAVOS_ORG_ID || 
+                    userData.org_id || 
+                    userData.organization?.id;
+      
+      if (!orgId) {
+        throw new Error('Missing organization ID. Please set EXPO_PUBLIC_CAVOS_ORG_ID environment variable or ensure org_id is provided.');
+      }
+
+      // Use the real CavosWallet constructor with all required parameters
+      const wallet = new CavosWallet(
+        userData.address,
+        userData.network || 'sepolia',
+        userData.email,
+        userData.user_id,
+        orgId,
+        process.env.EXPO_PUBLIC_CAVOS_APP_ID || 'your-app-id',
+        accessToken,
+        refreshToken
+      )
+      
+      console.log('✅ Real Cavos wallet created:', wallet)
       return wallet
     } catch (error) {
       console.error('❌ Error creating Cavos user:', error)
