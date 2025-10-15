@@ -22,7 +22,7 @@ export default function EmailSignIn({ onSuccess, onError, style }: EmailSignInPr
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const { loginWithEmail } = useAuth()
+  const { loginWithEmail, setupX10Trading, backendUserId } = useAuth()
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -57,6 +57,22 @@ export default function EmailSignIn({ onSuccess, onError, style }: EmailSignInPr
       })
 
       console.log('✅ Email login successful:', mockWallet)
+      
+      // Setup X10 trading for users who might not have it yet
+      if (backendUserId) {
+        console.log('🚀 Checking X10 trading setup for logged in user...')
+        try {
+          const x10SetupResult = await setupX10Trading(backendUserId)
+          if (x10SetupResult.success) {
+            console.log('✅ X10 trading setup completed for logged in user')
+          } else {
+            console.warn('⚠️ X10 trading setup failed for logged in user:', x10SetupResult.error)
+          }
+        } catch (error) {
+          console.warn('⚠️ X10 trading setup error for logged in user:', error)
+        }
+      }
+      
       onSuccess(mockWallet)
     } catch (error) {
       console.error('❌ Email login failed:', error)
