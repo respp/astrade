@@ -25,7 +25,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [authStep, setAuthStep] = useState<string>('')
   const [authMode, setAuthMode] = useState<'social' | 'email-login' | 'email-register'>('social')
-  const { createUser, setWallet, signOut, authenticated, userId } = useAuth()
+  const { createUser, setWallet, signOut, authenticated, userId, backendUserId, setupX10Trading } = useAuth()
   const isProcessing = useRef(false)
 
   // Debug auth state
@@ -83,7 +83,31 @@ export default function LoginScreen() {
         console.log('Using real Cavos user ID:', wallet.user_id)
         console.log('Using real wallet address:', wallet.address)
         
-        // Navigate to main app after storage is complete
+        // Setup X10 trading for new users
+        setAuthStep('Setting up your X10 trading account...')
+        console.log('🚀 Setting up X10 trading for new user...')
+        
+        // Use the backendUserId from the response, not the state (which might not be updated yet)
+        const userIdForX10 = response.data?.user_id || backendUserId || userId
+        console.log('🔍 Using user ID for X10 setup:', userIdForX10)
+        console.log('🔍 Response data:', response.data)
+        console.log('🔍 Current backendUserId state:', backendUserId)
+        
+        if (!userIdForX10 || userIdForX10 === 'null') {
+          console.warn('⚠️ No valid user ID available for X10 setup, skipping...')
+        } else {
+          console.log('🚀 Proceeding with X10 setup using user ID:', userIdForX10)
+          const x10SetupResult = await setupX10Trading(userIdForX10)
+          
+          if (x10SetupResult.success) {
+            console.log('✅ X10 trading setup completed successfully')
+          } else {
+            console.warn('⚠️ X10 trading setup failed, but continuing with app:', x10SetupResult.error)
+            // Don't block the user from accessing the app if X10 setup fails
+          }
+        }
+        
+        // Navigate to main app after all setup is complete
         setAuthStep('Redirecting to main app...')
         
         // Wait a bit for storage operations to complete fully
