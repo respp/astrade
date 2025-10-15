@@ -8,6 +8,7 @@ import { marketsService } from '@/lib/api/services/markets';
 import type { Market, MarketStats } from '@/lib/api/types';
 import { router } from 'expo-router';
 import { useMultiplePriceStreams } from '@/lib/hooks/usePriceStream';
+import WebSocketMarkPriceTest from '@/components/WebSocketMarkPriceTest';
 
 export default function TradeStation() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,6 +16,7 @@ export default function TradeStation() {
   const [loading, setLoading] = useState(true);
   const [trendingMarkets, setTrendingMarkets] = useState<MarketStats[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showWebSocketTest, setShowWebSocketTest] = useState(false);
 
   // Real-time price monitoring for the 3 active markets
   const activeMarkets = ['BTC-USD', 'ETH-USD', 'STRK-USD'];
@@ -116,7 +118,8 @@ export default function TradeStation() {
   // Merge real-time price data with market data
   const marketsWithRealTimePrices = markets.map(market => {
     const realTimeData = pricesData.get(market.symbol);
-    if (realTimeData) {
+    if (realTimeData && realTimeData.price > 0) {
+      console.log(`✅ Using real-time price for ${market.symbol}: $${realTimeData.price}`);
       return {
         ...market,
         lastPrice: realTimeData.price,
@@ -127,6 +130,10 @@ export default function TradeStation() {
         low24h: realTimeData.low24h,
         // Keep other market data from the original source
       };
+    } else if (realTimeData) {
+      console.warn(`⚠️ Real-time data for ${market.symbol} has invalid price: ${realTimeData.price}`);
+    } else {
+      console.log(`📊 Using static market data for ${market.symbol}: $${market.lastPrice}`);
     }
     return market;
   });
@@ -166,6 +173,15 @@ export default function TradeStation() {
   // Check if any market has connection issues
   const hasConnectionIssues = Array.from(connections.values()).some(connected => !connected);
   const hasPriceErrors = Array.from(errors.values()).some(error => !!error);
+  
+  // Debug connection status
+  console.log('🔍 Connection Status Debug:');
+  activeMarkets.forEach(market => {
+    const isConnected = connections.get(market);
+    const error = errors.get(market);
+    const priceData = pricesData.get(market);
+    console.log(`${market}: Connected=${isConnected}, Error=${error}, Price=${priceData?.price || 'N/A'}`);
+  });
 
   if (loading) {
     return (
@@ -173,6 +189,24 @@ export default function TradeStation() {
         <ActivityIndicator size="large" color="#bf7af0" />
         <Text style={styles.loadingText}>Loading market data...</Text>
       </LinearGradient>
+    );
+  }
+
+  // Show WebSocket test component if toggled
+  if (showWebSocketTest) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => setShowWebSocketTest(false)}
+          >
+            <Text style={styles.backButtonText}>← Back to Markets</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>WebSocket Mark Price Test</Text>
+        </View>
+        <WebSocketMarkPriceTest />
+      </View>
     );
   }
 
@@ -227,9 +261,27 @@ export default function TradeStation() {
       <ScrollView style={styles.marketsList} showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Active Markets</Text>
-          <TouchableOpacity onPress={loadMarketData}>
-            <Text style={styles.refreshText}>Refresh</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.testButton}
+              onPress={() => setShowWebSocketTest(true)}
+            >
+              <Text style={styles.testButtonText}>Test WS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.debugButton}
+              onPress={() => {
+                console.log('🔄 Manual WebSocket refresh triggered');
+                // Force refresh by reloading market data
+                loadMarketData();
+              }}
+            >
+              <Text style={styles.debugButtonText}>Debug</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={loadMarketData}>
+              <Text style={styles.refreshText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {error ? (
@@ -487,6 +539,46 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  testButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  debugButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  backButton: {
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '500',
   },
 });
