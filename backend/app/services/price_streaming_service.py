@@ -231,9 +231,11 @@ price_streaming_service = PriceStreamingService()
 
 # WebSocket endpoint handler
 async def handle_price_stream_websocket(websocket: WebSocket, symbol: str):
-    """Handle WebSocket connections for price streaming"""
+    """Handle WebSocket connections for price streaming using Extended Exchange"""
     try:
-        await price_streaming_service.add_websocket_connection(websocket, symbol)
+        # Use Extended Exchange WebSocket service instead of x10
+        from app.services.extended_websocket_service import extended_websocket_service
+        await extended_websocket_service.add_websocket_connection(websocket, symbol)
         
         # Keep connection alive and handle client messages
         while True:
@@ -249,7 +251,7 @@ async def handle_price_stream_websocket(websocket: WebSocket, symbol: str):
                     await websocket.send_text(json.dumps({
                         "type": "subscribed",
                         "symbol": symbol,
-                        "message": f"Subscribed to {symbol} price updates"
+                        "message": f"Subscribed to {symbol} mark price updates from Extended Exchange"
                     }))
                     
             except Exception as e:
@@ -259,7 +261,9 @@ async def handle_price_stream_websocket(websocket: WebSocket, symbol: str):
     except Exception as e:
         logger.error(f"WebSocket connection error for {symbol}: {e}")
     finally:
-        await price_streaming_service.remove_websocket_connection(websocket, symbol)
+        # Use Extended Exchange service for cleanup
+        from app.services.extended_websocket_service import extended_websocket_service
+        await extended_websocket_service.remove_websocket_connection(websocket, symbol)
 
 # Fallback price service for when x10 is not available
 class FallbackPriceService:
