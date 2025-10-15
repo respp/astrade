@@ -246,6 +246,31 @@ export default function TabLayout() {
           href: null, // Hide from tab bar but keep route accessible
         }}
       />
+      <Tabs.Screen
+        name="dojo-test"
+        options={{
+          title: 'Dojo Test',
+          tabBarIcon: ({ size, color, focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{
+                fontSize: size * (focused ? 1.5 : 1),
+                marginBottom: 4,
+                opacity: focused ? 1 : 0.6,
+              }}>
+                🎮
+              </Text>
+              <Text style={{
+                fontSize: 10,
+                fontWeight: '600',
+                color: focused ? '#10B981' : '#6B7280',
+                textAlign: 'center'
+              }}>
+                Dojo
+              </Text>
+            </View>
+          ),
+        }}
+      />
       </Tabs>
   );
 }
