@@ -116,6 +116,7 @@ class StarkPositionResponse(BaseModel):
     id: int = Field(..., description="Position ID")
     accountId: int = Field(..., description="Account ID")
     market: str = Field(..., description="Market symbol")
+    status: Optional[str] = Field(None, description="Position status")
     side: str = Field(..., description="Position side (LONG/SHORT)")
     leverage: str = Field(..., description="Leverage used")
     size: str = Field(..., description="Position size")
@@ -125,41 +126,49 @@ class StarkPositionResponse(BaseModel):
     liquidationPrice: str = Field(..., description="Liquidation price")
     margin: str = Field(..., description="Margin used")
     unrealisedPnl: str = Field(..., description="Unrealized PnL")
+    midPriceUnrealisedPnl: Optional[str] = Field(None, description="Mid price unrealized PnL")
     realisedPnl: str = Field(..., description="Realized PnL")
     tpTriggerPrice: Optional[str] = Field(None, description="Take profit trigger price")
     tpLimitPrice: Optional[str] = Field(None, description="Take profit limit price")
     slTriggerPrice: Optional[str] = Field(None, description="Stop loss trigger price")
     slLimitPrice: Optional[str] = Field(None, description="Stop loss limit price")
-    adl: str = Field(..., description="ADL (Auto-Deleveraging) value")
-    maxPositionSize: str = Field(..., description="Maximum position size")
-    createdTime: int = Field(..., description="Creation timestamp")
-    updatedTime: int = Field(..., description="Last update timestamp")
+    adl: int = Field(..., description="ADL (Auto-Deleveraging) value")
+    maxPositionSize: Optional[str] = Field(None, description="Maximum position size")
+    createdAt: int = Field(..., description="Creation timestamp")
+    updatedAt: int = Field(..., description="Last update timestamp")
+    # Legacy fields for backward compatibility
+    createdTime: Optional[int] = Field(None, description="Creation timestamp (legacy)")
+    updatedTime: Optional[int] = Field(None, description="Last update timestamp (legacy)")
     
     class Config:
         """Pydantic config"""
         schema_extra = {
             "example": {
-                "id": 1,
-                "accountId": 1,
+                "id": 1978158883813720064,
+                "accountId": 3107,
                 "market": "BTC-USD",
+                "status": "OPENED",
                 "side": "LONG",
                 "leverage": "10",
-                "size": "0.1",
-                "value": "4000",
-                "openPrice": "39000",
-                "markPrice": "40000",
-                "liquidationPrice": "38200",
-                "margin": "20",
-                "unrealisedPnl": "1000",
-                "realisedPnl": "1.2",
+                "size": "0.01003",
+                "value": "1130.641514",
+                "openPrice": "112791.2",
+                "markPrice": "112725.973549437505",
+                "liquidationPrice": "0",
+                "margin": "11.306415",
+                "unrealisedPnl": "-0.654727",
+                "midPriceUnrealisedPnl": "0.334500",
+                "realisedPnl": "-0.565647",
                 "tpTriggerPrice": "41000",
                 "tpLimitPrice": "41500",
                 "slTriggerPrice": "39500",
                 "slLimitPrice": "39000",
-                "adl": "2.5",
+                "adl": 4,
                 "maxPositionSize": "0.2",
-                "createdTime": 1701563440000,
-                "updatedTime": 1701563440
+                "createdAt": 1760464805244,
+                "updatedAt": 1760464825039,
+                "createdTime": 1760464805244,
+                "updatedTime": 1760464825039
             }
         }
 
