@@ -168,6 +168,11 @@ export const useMultiplePriceStreams = (symbols: string[]) => {
         console.error(`Price stream error for ${symbol}:`, err);
         setErrors(prev => new Map(prev.set(symbol, err.message || 'Connection failed')));
         setConnections(prev => new Map(prev.set(symbol, false)));
+        // Try to get initial price from cache even if stream fails
+        const lastPrice = priceStreamService.getLastPrice(symbol);
+        if (lastPrice && lastPrice.price > 0) {
+          setPricesData(prev => new Map(prev.set(symbol, lastPrice)));
+        }
       };
 
       try {
