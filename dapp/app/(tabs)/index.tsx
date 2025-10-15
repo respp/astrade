@@ -2,8 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Award, Star, Gift, TrendingUp, Activity } from 'lucide-react-native';
+import { Award, Star, Gift, TrendingUp, Activity, Zap } from 'lucide-react-native';
 import { TradingDemo } from '@/components/TradingDemo';
+import { SwapDemo } from '@/components/SwapDemo';
+// import { RealSwapTest } from '@/components/RealSwapTest';
+import { AuthDebugger } from '@/components/AuthDebugger';
+import { AmountTest } from '@/components/AmountTest';
+import { SwapDebugger } from '@/components/SwapDebugger';
+import { ExactSwapTest } from '@/components/ExactSwapTest';
+import { DirectAPITest } from '@/components/DirectAPITest';
+import { APIDebugger } from '@/components/APIDebugger';
+import { CleanAPITest } from '@/components/CleanAPITest';
+import { TokenAddressTest } from '@/components/TokenAddressTest';
+import X10TradingSetup from '@/components/X10TradingSetup';
 import PlanetVisual from '@/components/PlanetVisual';
 import ProgressBar from '@/components/ProgressBar';
 import ActionButton from '@/components/ActionButton';
@@ -21,6 +32,16 @@ import { router } from 'expo-router';
 
 export default function HomePlanet() {
   const [showTradingDemo, setShowTradingDemo] = useState(false);
+  const [showSwapDemo, setShowSwapDemo] = useState(false);
+  const [showRealSwapTest, setShowRealSwapTest] = useState(false);
+  const [showAuthDebugger, setShowAuthDebugger] = useState(false);
+  const [showAmountTest, setShowAmountTest] = useState(false);
+  const [showSwapDebugger, setShowSwapDebugger] = useState(false);
+  const [showExactSwapTest, setShowExactSwapTest] = useState(false);
+  const [showDirectAPITest, setShowDirectAPITest] = useState(false);
+  const [showAPIDebugger, setShowAPIDebugger] = useState(false);
+  const [showCleanAPITest, setShowCleanAPITest] = useState(false);
+  const [showTokenAddressTest, setShowTokenAddressTest] = useState(false);
   const [showDailyRewards, setShowDailyRewards] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showAchievementNotification, setShowAchievementNotification] = useState(false);
@@ -80,6 +101,56 @@ export default function HomePlanet() {
   const handleOpenTrading = () => {
     console.log('Opening trading modal...');
     setShowTradingDemo(true);
+  };
+
+  const handleOpenSwap = () => {
+    console.log('Opening swap modal...');
+    setShowSwapDemo(true);
+  };
+
+  const handleOpenRealSwapTest = () => {
+    console.log('Opening real swap test modal...');
+    setShowRealSwapTest(true);
+  };
+
+  const handleOpenAuthDebugger = () => {
+    console.log('Opening auth debugger modal...');
+    setShowAuthDebugger(true);
+  };
+
+  const handleOpenAmountTest = () => {
+    console.log('Opening amount test modal...');
+    setShowAmountTest(true);
+  };
+
+  const handleOpenSwapDebugger = () => {
+    console.log('Opening swap debugger modal...');
+    setShowSwapDebugger(true);
+  };
+
+  const handleOpenExactSwapTest = () => {
+    console.log('Opening exact swap test modal...');
+    setShowExactSwapTest(true);
+  };
+
+  const handleOpenDirectAPITest = () => {
+    console.log('Opening direct API test modal...');
+    setShowDirectAPITest(true);
+  };
+
+  const handleOpenAPIDebugger = () => {
+    console.log('Opening API debugger modal...');
+    setShowAPIDebugger(true);
+  };
+
+  const handleOpenCleanAPITest = () => {
+    console.log('Opening clean API test modal...');
+    setShowCleanAPITest(true);
+  };
+
+  const handleOpenTokenAddressTest = () => {
+    console.log('Opening token address test modal...');
+    setShowTokenAddressTest(true);
   };
 
 
@@ -185,10 +256,12 @@ export default function HomePlanet() {
               gradient={['#bf7af0', '#8b5cf6']}
               onPress={handleOpenTrading}
             />
+
           </View>
         </View>
 
-
+        {/* X10 Perpetual Trading */}
+        <X10TradingSetup />
 
         {/* Recent Activity */}
         <View style={styles.activitySection}>
@@ -237,6 +310,7 @@ export default function HomePlanet() {
         </View>
       </Modal>
 
+      
       {/* Daily Rewards Modal */}
       <DailyRewardsModal
         visible={showDailyRewards}
