@@ -83,7 +83,8 @@ class ExtendedExchangeConfig:
         "funding": "funding.{symbol}",
         "account": "account",
         "orders": "orders",
-        "positions": "positions"
+        "positions": "positions",
+        "mark_prices": "prices/mark/{symbol}"  # Mark price stream for P&L calculations
     }
     
     # Order Types permitidos
