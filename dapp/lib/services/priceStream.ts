@@ -116,12 +116,16 @@ export class PriceStreamService {
 
   private async fetchPrice(symbol: string) {
     try {
+      console.log(`Fetching price for ${symbol} via polling...`);
+      
       // First try to get price from Stark streaming endpoint
       try {
         const response = await fetch(`${this.baseUrl}/api/v1/stark/stream/prices/${symbol}/current`);
         if (response.ok) {
           const result = await response.json();
-          if (result.success && result.data) {
+          console.log(`Stark streaming response for ${symbol}:`, result);
+          
+          if (result.success && result.data && result.data.price > 0) {
             const data = result.data;
             const priceData: PriceData = {
               symbol: data.symbol,
@@ -134,32 +138,46 @@ export class PriceStreamService {
               timestamp: Date.now(),
             };
 
+            console.log(`✅ Stark streaming price for ${symbol}: $${data.price}`);
             this.lastPrices.set(symbol, priceData);
             this.notifySubscribers(symbol, priceData);
             return;
           }
         }
       } catch (starkError) {
-        console.log(`Stark price endpoint failed, falling back to market stats: ${starkError}`);
+        console.log(`Stark price endpoint failed for ${symbol}, falling back to market stats: ${starkError}`);
       }
 
       // Fallback to existing market stats API
-      const marketStats = await tradingService.getMarketStats(symbol);
-      if (marketStats.length > 0) {
-        const data = marketStats[0];
-        const priceData: PriceData = {
-          symbol: data.symbol,
-          price: data.price,
-          change24h: data.priceChange24h,
-          changePercent24h: data.priceChangePercent24h,
-          high24h: data.high24h,
-          low24h: data.low24h,
-          volume24h: data.volume24h,
-          timestamp: Date.now(),
-        };
+      try {
+        const marketStats = await tradingService.getMarketStats(symbol);
+        console.log(`Market stats response for ${symbol}:`, marketStats);
+        
+        if (marketStats.length > 0) {
+          const data = marketStats[0];
+          if (data.price > 0) {
+            const priceData: PriceData = {
+              symbol: data.symbol,
+              price: data.price,
+              change24h: data.priceChange24h,
+              changePercent24h: data.priceChangePercent24h,
+              high24h: data.high24h,
+              low24h: data.low24h,
+              volume24h: data.volume24h,
+              timestamp: Date.now(),
+            };
 
-        this.lastPrices.set(symbol, priceData);
-        this.notifySubscribers(symbol, priceData);
+            console.log(`✅ Market stats price for ${symbol}: $${data.price}`);
+            this.lastPrices.set(symbol, priceData);
+            this.notifySubscribers(symbol, priceData);
+          } else {
+            console.warn(`⚠️ Market stats returned 0 price for ${symbol}`);
+          }
+        } else {
+          console.warn(`⚠️ No market stats found for ${symbol}`);
+        }
+      } catch (marketStatsError) {
+        console.error(`Market stats API failed for ${symbol}:`, marketStatsError);
       }
     } catch (error) {
       console.error(`Failed to fetch price for ${symbol}:`, error);
@@ -168,50 +186,58 @@ export class PriceStreamService {
 
   private startWebSocket(symbol: string) {
     try {
-      const wsUrl = `${this.websocketUrl}/api/v1/stark/stream/prices/${symbol}`;
-      console.log(`Connecting to WebSocket: ${wsUrl}`);
+      // Use the Stark Extended Exchange WebSocket endpoint for mark prices
+      const wsUrl = `wss://api.starknet.extended.exchange/stream.extended.exchange/v1/prices/mark/${symbol}`;
+      console.log(`Connecting to Stark WebSocket: ${wsUrl}`);
       
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
         console.log(`WebSocket connected for ${symbol}`);
-        // Send subscription message
-        ws.send(JSON.stringify({ type: 'subscribe', symbol }));
+        // No need to send subscription message - connection is automatic
       };
       
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log(`Received WebSocket data for ${symbol}:`, data);
           
-          if (data.type === 'price_update') {
+          // Handle Stark Extended Exchange mark price format
+          if (data.type === 'MP' && data.data && data.data.m === symbol) {
+            const markPrice = parseFloat(data.data.p);
+            
+            if (isNaN(markPrice) || markPrice === 0) {
+              console.warn(`Invalid price received for ${symbol}:`, data.data.p);
+              return;
+            }
+            
             const priceData: PriceData = {
-              symbol: data.symbol,
-              price: data.price,
-              change24h: 0, // Calculate from previous price if needed
-              changePercent24h: 0, // Calculate from previous price if needed
-              high24h: data.price * 1.02, // Estimate based on current price
-              low24h: data.price * 0.98, // Estimate based on current price
+              symbol: data.data.m,
+              price: markPrice,
+              change24h: 0, // Will be calculated from previous data
+              changePercent24h: 0, // Will be calculated from previous data
+              high24h: markPrice * 1.02, // Estimate based on current price
+              low24h: markPrice * 0.98, // Estimate based on current price
               volume24h: 1500000000, // Default volume
-              timestamp: Date.now(),
+              timestamp: data.data.ts || Date.now(),
             };
             
             // Calculate 24h change if we have previous data
             const lastPrice = this.lastPrices.get(symbol);
-            if (lastPrice) {
-              const change = data.price - lastPrice.price;
+            if (lastPrice && lastPrice.price > 0) {
+              const change = markPrice - lastPrice.price;
               const changePercent = (change / lastPrice.price) * 100;
               priceData.change24h = change;
               priceData.changePercent24h = changePercent;
-              priceData.high24h = Math.max(lastPrice.high24h, data.price);
-              priceData.low24h = Math.min(lastPrice.low24h, data.price);
+              priceData.high24h = Math.max(lastPrice.high24h || markPrice, markPrice);
+              priceData.low24h = Math.min(lastPrice.low24h || markPrice, markPrice);
             }
             
+            console.log(`Updated price for ${symbol}: $${markPrice}`);
             this.lastPrices.set(symbol, priceData);
             this.notifySubscribers(symbol, priceData);
-          } else if (data.type === 'pong') {
-            console.log(`Received pong from ${symbol} stream`);
-          } else if (data.type === 'subscribed') {
-            console.log(`Successfully subscribed to ${symbol}: ${data.message}`);
+          } else {
+            console.log(`Ignoring message for ${symbol}:`, data.type, data.data?.m);
           }
         } catch (error) {
           console.error(`Error parsing WebSocket message for ${symbol}:`, error);
@@ -221,6 +247,7 @@ export class PriceStreamService {
       ws.onerror = (error) => {
         console.error(`WebSocket error for ${symbol}:`, error);
         // Fallback to polling
+        console.log(`Falling back to polling for ${symbol}`);
         this.startPolling(symbol);
       };
       
@@ -228,7 +255,7 @@ export class PriceStreamService {
         console.log(`WebSocket closed for ${symbol}:`, event.code, event.reason);
         this.websockets.delete(symbol);
         
-        // Attempt to reconnect after 5 seconds
+        // Attempt to reconnect after 5 seconds if we still have subscribers
         setTimeout(() => {
           if (this.subscribers.has(symbol) && this.subscribers.get(symbol)!.size > 0) {
             console.log(`Attempting to reconnect WebSocket for ${symbol}`);
@@ -239,18 +266,10 @@ export class PriceStreamService {
       
       this.websockets.set(symbol, ws);
       
-      // Setup ping interval to keep connection alive
-      const pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }));
-        } else {
-          clearInterval(pingInterval);
-        }
-      }, 30000); // Ping every 30 seconds
-      
     } catch (error) {
       console.error(`Failed to start WebSocket for ${symbol}:`, error);
       // Fallback to polling
+      console.log(`Falling back to polling for ${symbol}`);
       this.startPolling(symbol);
     }
   }
