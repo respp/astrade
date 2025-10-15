@@ -9,7 +9,11 @@ from app.models.users import (
     UserCreateRequest, 
     UserCreateResponse,
     StarknetWalletOnboardingRequest,
-    ExtendedOnboardingResponse
+    ExtendedOnboardingResponse,
+    X10OnboardingRequest,
+    X10OnboardingResponse,
+    X10AccountGenerationRequest,
+    X10AccountGenerationResponse
 )
 from app.services.database import get_db
 from app.api.v1.users.service import (
@@ -26,6 +30,7 @@ from app.services.extended.cavos_integration import (
     CavosWalletData
 )
 from app.services.extended.signature_service import extended_signature_service
+from app.services.x10_onboarding_service import x10_onboarding_service
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -639,5 +644,300 @@ async def onboard_extended_with_starknet_route(
                 "Check your wallet and network connection",
                 "Verify all required data is provided",
                 "Contact support for assistance"
+            ]
+        )
+
+
+@router.post("/{user_id}/x10/onboard", response_model=X10OnboardingResponse, summary="Onboard to X10 Perpetual Trading")
+async def onboard_x10_perpetual_trading_route(
+    user_id: str = Path(..., description="User ID"),
+    onboarding_data: X10OnboardingRequest = ...,
+    db: Session = Depends(get_db)
+):
+    """
+    Onboard user to X10 perpetual trading platform using the provided example.
+    
+    This endpoint:
+    1. Creates an Ethereum account from the provided private key
+    2. Onboards to X10 perpetual trading platform
+    3. Creates trading API key
+    4. Claims testnet funds
+    5. Stores all credentials securely in Supabase vault
+    
+    Args:
+        user_id: AsTrade user ID
+        onboarding_data: X10 onboarding request with Ethereum private key
+        
+    Returns:
+        X10OnboardingResponse with account details and next steps
+    """
+    try:
+        # Verify user exists
+        user = await get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        logger.info(
+            "Starting X10 perpetual trading onboarding",
+            user_id=user_id,
+            eth_key_provided=bool(onboarding_data.eth_private_key)
+        )
+        
+        # Perform X10 onboarding
+        success, message, account_data = await x10_onboarding_service.onboard_user(
+            onboarding_data.eth_private_key,
+            user_id
+        )
+        
+        if success and account_data:
+            logger.info(
+                "X10 onboarding completed successfully",
+                user_id=user_id,
+                vault=account_data["l2_vault"],
+                claim_id=account_data["claim_id"]
+            )
+            
+            return X10OnboardingResponse(
+                success=True,
+                account_data={
+                    "l2_vault": account_data["l2_vault"],
+                    "l2_public_key": account_data["l2_public_key"][:20] + "...",  # Masked for security
+                    "l2_private_key": account_data["l2_private_key"][:20] + "...",  # Masked for security
+                    "api_key": account_data["api_key"],
+                    "eth_address": account_data["eth_address"],
+                    "claim_id": account_data["claim_id"],
+                    "environment": account_data["environment"]
+                },
+                message=message,
+                setup_completed=True,
+                next_steps=[
+                    "X10 perpetual trading account is now active",
+                    "Testnet funds claimed successfully" if account_data["claim_id"] else "Testnet funds claim pending",
+                    "All credentials stored securely in Supabase vault",
+                    "You can now start perpetual trading with X10",
+                    "Check your balance and begin exploring trading features",
+                    "Use the trading API key for authenticated requests"
+                ]
+            )
+        else:
+            logger.error(
+                "X10 onboarding failed",
+                user_id=user_id,
+                error=message
+            )
+            
+            return X10OnboardingResponse(
+                success=False,
+                message=message,
+                setup_completed=False,
+                next_steps=[
+                    "Check your Ethereum private key format",
+                    "Ensure you have sufficient ETH for gas fees",
+                    "Verify your internet connection",
+                    "Contact support if the issue persists"
+                ]
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "X10 onboarding endpoint error",
+            user_id=user_id,
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        return X10OnboardingResponse(
+            success=False,
+            message=f"X10 onboarding failed: {str(e)}",
+            setup_completed=False,
+            next_steps=[
+                "Check your request parameters",
+                "Verify your Ethereum private key",
+                "Contact support for assistance"
+            ]
+        )
+
+
+@router.get("/{user_id}/x10/status", response_model=SuccessResponse, summary="Check X10 trading status")
+async def check_x10_status_route(
+    user_id: str = Path(..., description="User ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    Check the status of X10 perpetual trading integration for a user.
+    
+    Returns information about:
+    - Whether X10 account is set up
+    - Account details (masked for security)
+    - Trading capabilities
+    - Environment (testnet/mainnet)
+    """
+    try:
+        # Verify user exists
+        user = await get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get X10 credentials
+        credentials = await x10_onboarding_service.get_user_x10_credentials(user_id)
+        
+        if credentials:
+            status_data = {
+                "user_id": user_id,
+                "x10_configured": True,
+                "account_details": {
+                    "l2_vault": credentials["l2_vault"],
+                    "l2_public_key": credentials["l2_public_key"][:20] + "...",  # Masked
+                    "eth_address": credentials["eth_address"],
+                    "environment": credentials["environment"],
+                    "claim_id": credentials["claim_id"]
+                },
+                "trading_capabilities": {
+                    "perpetual_trading": True,
+                    "balance_check": True,
+                    "position_management": True,
+                    "order_management": True,
+                    "testnet_funds": bool(credentials["claim_id"])
+                },
+                "status": "Active and ready for trading"
+            }
+        else:
+            status_data = {
+                "user_id": user_id,
+                "x10_configured": False,
+                "account_details": None,
+                "trading_capabilities": {
+                    "perpetual_trading": False,
+                    "balance_check": False,
+                    "position_management": False,
+                    "order_management": False,
+                    "testnet_funds": False
+                },
+                "status": "Not configured - onboard to X10 to start trading"
+            }
+        
+        return SuccessResponse(data=status_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to check X10 status", user_id=user_id, error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check X10 status: {str(e)}"
+        )
+
+
+@router.post("/{user_id}/x10/generate-account", response_model=X10AccountGenerationResponse, summary="Generate New X10 Account from Zero")
+async def generate_x10_account_route(
+    user_id: str = Path(..., description="User ID"),
+    generation_data: X10AccountGenerationRequest = ...,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a completely new X10 perpetual trading account from zero.
+    
+    This endpoint:
+    1. Generates a new Ethereum account automatically
+    2. Onboards to X10 perpetual trading platform
+    3. Creates trading API key
+    4. Claims testnet funds
+    5. Stores all credentials securely in Supabase vault
+    
+    No input required - everything is generated automatically!
+    
+    Args:
+        user_id: AsTrade user ID
+        generation_data: Account generation request (only needs user_id)
+        
+    Returns:
+        X10AccountGenerationResponse with complete account details
+    """
+    try:
+        # Verify user exists
+        user = await get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        logger.info(
+            "Starting X10 account generation from zero",
+            user_id=user_id
+        )
+        
+        # Generate new account from zero
+        success, message, account_data = await x10_onboarding_service.generate_new_account(user_id)
+        
+        if success and account_data:
+            logger.info(
+                "X10 account generation completed successfully",
+                user_id=user_id,
+                eth_address=account_data["eth_address"],
+                vault=account_data["l2_vault"],
+                claim_id=account_data["claim_id"]
+            )
+            
+            return X10AccountGenerationResponse(
+                success=True,
+                generated_account={
+                    "eth_address": account_data["eth_address"],
+                    "eth_private_key": account_data["eth_private_key"],  # Full key for new accounts
+                    "l2_vault": account_data["l2_vault"],
+                    "l2_public_key": account_data["l2_public_key"],
+                    "l2_private_key": account_data["l2_private_key"],
+                    "api_key": account_data["api_key"],
+                    "claim_id": account_data["claim_id"],
+                    "environment": account_data["environment"],
+                    "generated_from_zero": True
+                },
+                message=message,
+                setup_completed=True,
+                next_steps=[
+                    "✅ New Ethereum account generated automatically",
+                    "✅ X10 perpetual trading account created",
+                    "✅ Trading API key generated",
+                    "✅ Testnet funds claimed successfully" if account_data["claim_id"] else "⏳ Testnet funds claim pending",
+                    "✅ All credentials stored securely in Supabase vault",
+                    "🚀 You can now start perpetual trading with X10",
+                    "💡 Save your Ethereum private key securely - it's needed for future operations",
+                    "📊 Check your balance and begin exploring trading features"
+                ]
+            )
+        else:
+            logger.error(
+                "X10 account generation failed",
+                user_id=user_id,
+                error=message
+            )
+            
+            return X10AccountGenerationResponse(
+                success=False,
+                message=message,
+                setup_completed=False,
+                next_steps=[
+                    "❌ Account generation failed",
+                    "🔍 Check your internet connection",
+                    "🔄 Try again in a few moments",
+                    "📞 Contact support if the issue persists"
+                ]
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "X10 account generation endpoint error",
+            user_id=user_id,
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        return X10AccountGenerationResponse(
+            success=False,
+            message=f"Account generation failed: {str(e)}",
+            setup_completed=False,
+            next_steps=[
+                "❌ Unexpected error during account generation",
+                "🔄 Please try again",
+                "📞 Contact support for assistance"
             ]
         ) 
