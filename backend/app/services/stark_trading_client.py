@@ -29,7 +29,7 @@ project_root = str(Path(__file__).parent.parent.parent.absolute())
 sys.path.insert(0, project_root)
 
 from x10.perpetual.accounts import StarkPerpetualAccount
-from x10.perpetual.configuration import STARKNET_TESTNET_CONFIG
+from x10.perpetual.configuration import TESTNET_CONFIG
 from x10.perpetual.orders import OrderSide
 from x10.perpetual.simple_client.simple_trading_client import BlockingTradingClient
 
@@ -126,7 +126,7 @@ class StarkTradingService:
                 
                 # Create trading client
                 self.client = BlockingTradingClient(
-                    endpoint_config=STARKNET_TESTNET_CONFIG,
+                    endpoint_config=TESTNET_CONFIG,
                     account=self.account
                 )
                 
