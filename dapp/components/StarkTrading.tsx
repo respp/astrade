@@ -22,7 +22,7 @@ import { createShadow, shadowPresets } from '../lib/platform-styles';
 import { TrendingUp, TrendingDown, Wifi, WifiOff, AlertCircle, BarChart3, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { InsufficientBalanceModal } from './InsufficientBalanceModal';
 import { PositionsOrdersModal } from './PositionsOrdersModal';
-import { CandleChart } from './CandleChart';
+// import { CandleChart } from './CandleChart'; // TEMP: Comentado - componente no existe después del rebase. Ver docs/TECHNICAL_DEBT.md
 import { 
   validateQuantity, 
   formatQuantity, 
@@ -328,11 +328,24 @@ export const StarkTrading: React.FC<StarkTradingProps> = ({ market = 'BTC-USD' }
         {/* Main Content with integrated layout */}
         <View style={styles.mainContent}>
           {/* Candle Chart - Always visible */}
+          {/* TEMP: CandleChart comentado - componente no existe. Ver docs/TECHNICAL_DEBT.md
           <CandleChart
             market={market}
             candleType="mark-prices"
             interval="PT1M"
           />
+          */}
+          
+          {/* Temporary placeholder for CandleChart */}
+          <View style={styles.chartPlaceholder}>
+            <BarChart3 size={48} color="#bf7af0" />
+            <Text style={styles.placeholderText}>
+              Chart visualization coming soon
+            </Text>
+            <Text style={styles.placeholderSubtext}>
+              Price: {formatPrice(priceData?.price || 0)}
+            </Text>
+          </View>
           {/* Symbol and Price Header */}
           <View style={styles.priceHeader}>
             {/* Price Display - Hero Section */}
@@ -759,5 +772,27 @@ const styles = StyleSheet.create({
     color: '#B0B0B0',
     marginTop: 8,
     textAlign: 'center',
+  },
+  chartPlaceholder: {
+    backgroundColor: 'rgba(191, 122, 240, 0.1)',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 122, 240, 0.3)',
+    minHeight: 200,
+  },
+  placeholderText: {
+    color: '#bf7af0',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  placeholderSubtext: {
+    color: '#a0a0a0',
+    fontSize: 14,
+    marginTop: 4,
   },
 }); 
