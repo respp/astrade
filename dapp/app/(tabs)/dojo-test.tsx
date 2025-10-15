@@ -110,16 +110,13 @@ export default function DojoTestScreen() {
     try {
       setLoading(true);
       
-      if (!wallet?.address) {
-        setMessage('⚠️ Conecta tu wallet primero');
-        Alert.alert('Atención', 'Necesitas conectar tu wallet');
-        return;
-      }
-
       setMessage('⏳ Consultando entidades...');
       
+      // En modo web, usamos una dirección mock
+      const mockAddress = wallet?.address || '0xa9d5a8aa7c34b94cd552c66429ac17bc9ba4cad4';
+      
       const entities = await queryEntities({
-        keys: [wallet.address],
+        keys: [mockAddress],
         models: ['Position', 'Moves'],
       });
       
@@ -233,7 +230,7 @@ export default function DojoTestScreen() {
               <Button 
                 title="🎯 Spawn Player" 
                 onPress={handleSpawn}
-                disabled={!isConnected || !isAuthenticated || loading}
+                disabled={!isConnected || loading}
                 color="#2ecc71"
               />
             </View>
@@ -242,7 +239,7 @@ export default function DojoTestScreen() {
               <Button 
                 title="🔍 Query Entities" 
                 onPress={handleQuery}
-                disabled={!isConnected || !wallet?.address || loading}
+                disabled={!isConnected || loading}
                 color="#3498db"
               />
             </View>
@@ -253,7 +250,7 @@ export default function DojoTestScreen() {
                 <Button 
                   title="⬆️ Up" 
                   onPress={() => handleMove('up')}
-                  disabled={!isConnected || !isAuthenticated || loading}
+                  disabled={!isConnected || loading}
                   color="#9b59b6"
                 />
               </View>
@@ -262,7 +259,7 @@ export default function DojoTestScreen() {
                   <Button 
                     title="⬅️ Left" 
                     onPress={() => handleMove('left')}
-                    disabled={!isConnected || !isAuthenticated || loading}
+                    disabled={!isConnected || loading}
                     color="#9b59b6"
                   />
                 </View>
@@ -270,7 +267,7 @@ export default function DojoTestScreen() {
                   <Button 
                     title="➡️ Right" 
                     onPress={() => handleMove('right')}
-                    disabled={!isConnected || !isAuthenticated || loading}
+                    disabled={!isConnected || loading}
                     color="#9b59b6"
                   />
                 </View>
@@ -279,7 +276,7 @@ export default function DojoTestScreen() {
                 <Button 
                   title="⬇️ Down" 
                   onPress={() => handleMove('down')}
-                  disabled={!isConnected || !isAuthenticated || loading}
+                  disabled={!isConnected || loading}
                   color="#9b59b6"
                 />
               </View>
