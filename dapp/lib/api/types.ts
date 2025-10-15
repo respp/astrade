@@ -340,9 +340,17 @@ export interface AuthResponse {
     deployed?: boolean;
   };
   authData?: {
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    // CamelCase versions (actual API response format)
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    email?: string;
+    org_id?: number;
+    timestamp?: number;
+    user_id?: string;
   };
   // Alternative fields (documentation format)
   user?: {
