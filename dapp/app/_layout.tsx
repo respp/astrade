@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import { useFrameworkReady } from '../hooks/useFrameworkReady';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { WalletProvider } from '../contexts/WalletContext';
+import { DojoProvider } from '../contexts/DojoContext';
 
 function RootLayoutNav() {
   const { authenticated, loading, userId } = useAuth();
@@ -135,10 +136,12 @@ export default function RootLayout() {
 
   return (
     <WalletProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <DojoProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </DojoProvider>
     </WalletProvider>
   );
 }
