@@ -22,6 +22,7 @@ interface Position {
   id: number;
   accountId: number;
   market: string;
+  status?: string;
   side: string;
   leverage: string;
   size: string;
@@ -31,15 +32,19 @@ interface Position {
   liquidationPrice: string;
   margin: string;
   unrealisedPnl: string;
+  midPriceUnrealisedPnl?: string;
   realisedPnl: string;
   tpTriggerPrice?: string;
   tpLimitPrice?: string;
   slTriggerPrice?: string;
   slLimitPrice?: string;
-  adl: string;
-  maxPositionSize: string;
-  createdTime: number;
-  updatedTime: number;
+  adl: number;
+  maxPositionSize?: string;
+  createdAt: number;
+  updatedAt: number;
+  // Legacy fields for backward compatibility
+  createdTime?: number;
+  updatedTime?: number;
 }
 
 interface Order {
@@ -261,7 +266,7 @@ export const PositionsOrdersModal: React.FC<PositionsOrdersModalProps> = ({
 
         <View style={styles.positionFooter}>
           <Text style={styles.timestampText}>
-            Created: {formatDate(position.createdTime)}
+            Created: {formatDate(position.createdAt || position.createdTime || 0)}
           </Text>
         </View>
       </View>
