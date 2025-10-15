@@ -1,7 +1,8 @@
 """Stark trading endpoints"""
-from fastapi import APIRouter, WebSocket, Query
+from fastapi import APIRouter, WebSocket, Query, HTTPException
 from typing import Optional, List
 import structlog
+import httpx
 
 from app.models.responses import SuccessResponse
 from app.api.v1.stark.models import (
@@ -250,14 +251,15 @@ async def health_check():
     """
     try:
         account_info = await get_stark_account_info()
-        price_health = await price_streaming_service.health_check()
+        from app.services.extended_websocket_service import extended_websocket_service
+        price_health = await extended_websocket_service.health_check()
         
         return SuccessResponse(data={
             "status": "healthy",
             "service": "stark_trading",
             "account_configured": account_info.vault is not None,
             "client_initialized": account_info.initialized,
-            "price_streaming": price_health
+            "extended_websocket_service": price_health
         })
     except Exception as e:
         logger.error("Stark trading health check failed", error=str(e))
@@ -271,66 +273,70 @@ async def health_check():
 @router.websocket("/stream/prices/{symbol}")
 async def websocket_price_stream(websocket: WebSocket, symbol: str):
     """
-    WebSocket endpoint for real-time price streaming using x10 perpetual orderbook.
+    WebSocket endpoint for real-time mark price streaming from Extended Exchange.
     
     Args:
         websocket: WebSocket connection
         symbol: Trading symbol (e.g., BTC-USD)
     
-    This endpoint provides real-time price updates from the x10 perpetual orderbook.
-    Clients will receive price updates whenever the best bid or ask changes.
+    This endpoint provides real-time mark price updates from Extended Exchange.
+    Mark prices are used for P&L calculations and serve as liquidation reference.
+    Clients will receive updates whenever the mark price changes.
     
     Example usage:
     ```javascript
     const ws = new WebSocket('ws://localhost:8000/api/v1/stark/stream/prices/BTC-USD');
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log('Price update:', data);
+        console.log('Mark price update:', data);
     };
     ```
     
     Message format:
     ```json
     {
-        "type": "price_update",
+        "type": "mark_price_update",
         "symbol": "BTC-USD",
         "price": 100250.50,
-        "best_bid": 100248.25,
-        "best_ask": 100252.75,
-        "spread": 4.50,
-        "timestamp": "2024-01-01T12:00:00.000Z"
+        "mark_price": 100250.50,
+        "timestamp": 1701563440000,
+        "sequence": 1,
+        "source_event_id": null,
+        "formatted_timestamp": "2024-01-01T12:00:00.000Z"
     }
     ```
     """
     await handle_price_stream_websocket(websocket, symbol)
 
 
-@router.get("/stream/prices/{symbol}/current", response_model=SuccessResponse, summary="Get current price")
+@router.get("/stream/prices/{symbol}/current", response_model=SuccessResponse, summary="Get current mark price")
 async def get_current_price(symbol: str):
     """
-    Get the current price for a symbol without establishing a WebSocket connection.
+    Get the current mark price for a symbol from Extended Exchange.
     
     Args:
         symbol: Trading symbol (e.g., BTC-USD)
     
     Returns:
-        Current price data if available
+        Current mark price data if available
     
-    This endpoint returns the last known price from the streaming service.
+    This endpoint returns the last known mark price from Extended Exchange.
+    Mark prices are used for P&L calculations and liquidation reference.
     If no price data is available, it will return null.
     """
     try:
-        current_price = await price_streaming_service.get_current_price(symbol)
+        from app.services.extended_websocket_service import extended_websocket_service
+        current_price = await extended_websocket_service.get_current_mark_price(symbol)
         return SuccessResponse(data=current_price)
     except Exception as e:
-        logger.error("Failed to get current price", symbol=symbol, error=str(e))
-        return SuccessResponse(data=None, message=f"Failed to get price for {symbol}")
+        logger.error("Failed to get current mark price", symbol=symbol, error=str(e))
+        return SuccessResponse(data=None, message=f"Failed to get mark price for {symbol}")
 
 
-@router.post("/stream/start/{symbol}", response_model=SuccessResponse, summary="Start price streaming")
+@router.post("/stream/start/{symbol}", response_model=SuccessResponse, summary="Start mark price streaming")
 async def start_price_streaming(symbol: str):
     """
-    Manually start price streaming for a symbol.
+    Manually start mark price streaming for a symbol from Extended Exchange.
     
     Args:
         symbol: Trading symbol (e.g., BTC-USD)
@@ -338,20 +344,149 @@ async def start_price_streaming(symbol: str):
     Returns:
         Status of the streaming service
     
-    This endpoint can be used to pre-warm the price streaming service
+    This endpoint can be used to pre-warm the mark price streaming service
     before clients connect via WebSocket.
     """
     try:
-        success = await price_streaming_service.start_orderbook_stream(symbol)
+        from app.services.extended_websocket_service import extended_websocket_service
+        success = await extended_websocket_service.connect_to_mark_price_stream(symbol)
         return SuccessResponse(data={
             "symbol": symbol,
             "streaming": success,
-            "message": f"Price streaming {'started' if success else 'failed'} for {symbol}"
+            "message": f"Extended Exchange mark price streaming {'started' if success else 'failed'} for {symbol}"
         })
     except Exception as e:
-        logger.error("Failed to start price streaming", symbol=symbol, error=str(e))
+        logger.error("Failed to start mark price streaming", symbol=symbol, error=str(e))
         return SuccessResponse(data={
             "symbol": symbol,
             "streaming": False,
             "error": str(e)
-        }) 
+        })
+
+
+@router.get("/candles/{market}/{candle_type}", response_model=SuccessResponse, summary="Get historical candles")
+async def get_historical_candles(
+    market: str,
+    candle_type: str,
+    interval: str = Query(..., description="Time interval (e.g., PT1M, PT5M, PT15M, PT1H)"),
+    limit: int = Query(20, description="Number of candles to return (max 100)"),
+    end_time: Optional[int] = Query(None, description="End timestamp in milliseconds")
+):
+    """
+    Get historical candle data from Extended Exchange.
+    
+    Args:
+        market: Trading market (e.g., BTC-USD, ETH-USD)
+        candle_type: Type of candle data (mark-prices, trades, index-prices)
+        interval: Time interval between candles
+        limit: Maximum number of candles to return
+        end_time: End timestamp in milliseconds (optional)
+    
+    Returns:
+        Historical candle data from Extended Exchange
+    
+    This endpoint fetches historical OHLC candle data from Extended Exchange.
+    It serves as a proxy to avoid CORS issues when accessing Extended Exchange API directly from the browser.
+    
+    Example usage:
+    GET /api/v1/stark/candles/BTC-USD/mark-prices?interval=PT1M&limit=20
+    
+    Example response:
+    ```json
+    {
+        "status": "success",
+        "data": {
+            "status": "OK",
+            "data": [
+                {
+                    "o": "65206.2",
+                    "l": "65206.2", 
+                    "h": "65206.2",
+                    "c": "65206.2",
+                    "v": "0.0",
+                    "T": 1715797320000
+                }
+            ]
+        }
+    }
+    ```
+    """
+    try:
+        # Validate candle_type
+        valid_types = ["mark-prices", "trades", "index-prices"]
+        if candle_type not in valid_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid candle_type. Must be one of: {', '.join(valid_types)}"
+            )
+        
+        # Validate interval
+        valid_intervals = ["PT1M", "PT5M", "PT15M", "PT30M", "PT1H", "PT4H", "PT24H", "P7D", "P30D"]
+        if interval not in valid_intervals:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid interval. Must be one of: {', '.join(valid_intervals)}"
+            )
+        
+        # Limit the number of candles to prevent abuse
+        if limit > 100:
+            limit = 100
+        
+        # Build the Extended Exchange API URL
+        base_url = "https://api.starknet.extended.exchange/api/v1/info/candles"
+        url = f"{base_url}/{market}/{candle_type}"
+        
+        # Build query parameters
+        params = {
+            "interval": interval,
+            "limit": limit
+        }
+        
+        if end_time:
+            params["endTime"] = end_time
+        
+        logger.info(
+            "Fetching historical candles from Extended Exchange",
+            market=market,
+            candle_type=candle_type,
+            interval=interval,
+            limit=limit,
+            end_time=end_time,
+            url=url
+        )
+        
+        # Make request to Extended Exchange
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(
+                    "Successfully fetched historical candles",
+                    market=market,
+                    candle_type=candle_type,
+                    candle_count=len(data.get("data", []))
+                )
+                return SuccessResponse(data=data)
+            else:
+                logger.error(
+                    "Failed to fetch historical candles from Extended Exchange",
+                    market=market,
+                    candle_type=candle_type,
+                    status_code=response.status_code,
+                    response_text=response.text
+                )
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Extended Exchange API error: {response.text}"
+                )
+                
+    except httpx.TimeoutException:
+        logger.error("Timeout fetching historical candles", market=market, candle_type=candle_type)
+        raise HTTPException(status_code=504, detail="Timeout fetching data from Extended Exchange")
+    except httpx.RequestError as e:
+        logger.error("Request error fetching historical candles", market=market, candle_type=candle_type, error=str(e))
+        raise HTTPException(status_code=502, detail=f"Error connecting to Extended Exchange: {str(e)}")
+    except Exception as e:
+        logger.error("Unexpected error fetching historical candles", market=market, candle_type=candle_type, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
