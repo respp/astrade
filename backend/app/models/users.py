@@ -125,3 +125,94 @@ class ExtendedOnboardingResponse(BaseModel):
                 ]
             }
         }
+
+
+class X10OnboardingRequest(BaseModel):
+    """Request model for X10 perpetual trading onboarding"""
+    eth_private_key: str = Field(..., description="Ethereum private key for L1 operations")
+    user_id: str = Field(..., description="AsTrade user ID")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "eth_private_key": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                "user_id": "user_12345"
+            }
+        }
+
+
+class X10OnboardingResponse(BaseModel):
+    """Response model for X10 perpetual trading onboarding"""
+    success: bool
+    account_data: Optional[dict] = None
+    message: str
+    setup_completed: bool
+    next_steps: List[str] = []
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "account_data": {
+                    "l2_vault": "123456",
+                    "l2_public_key": "0xabcdef...",
+                    "l2_private_key": "0x123456...",
+                    "api_key": "trading_key_123",
+                    "claim_id": "claim_456"
+                },
+                "message": "X10 perpetual trading account created successfully",
+                "setup_completed": True,
+                "next_steps": [
+                    "X10 perpetual trading account is now active",
+                    "Testnet funds claimed successfully",
+                    "You can now start perpetual trading",
+                    "Check your balance and positions"
+                ]
+            }
+        }
+
+
+class X10AccountGenerationRequest(BaseModel):
+    """Request model for generating new X10 account from zero"""
+    user_id: str = Field(..., description="AsTrade user ID")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": "user_12345"
+            }
+        }
+
+
+class X10AccountGenerationResponse(BaseModel):
+    """Response model for X10 account generation from zero"""
+    success: bool
+    generated_account: Optional[dict] = None
+    message: str
+    setup_completed: bool
+    next_steps: List[str] = []
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "generated_account": {
+                    "eth_address": "0x1234567890abcdef1234567890abcdef12345678",
+                    "eth_private_key": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                    "l2_vault": "123456",
+                    "l2_public_key": "0xabcdef...",
+                    "l2_private_key": "0x123456...",
+                    "api_key": "trading_key_123",
+                    "claim_id": "claim_456"
+                },
+                "message": "New X10 perpetual trading account generated successfully",
+                "setup_completed": True,
+                "next_steps": [
+                    "New Ethereum account generated",
+                    "X10 perpetual trading account created",
+                    "Testnet funds claimed successfully",
+                    "All credentials stored securely",
+                    "You can now start perpetual trading"
+                ]
+            }
+        }
