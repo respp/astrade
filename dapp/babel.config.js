@@ -3,16 +3,17 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      'babel-plugin-module-resolver',
       [
-        'module-resolver',
+        'babel-plugin-module-resolver',
         {
           root: ['./'],
           alias: {
             '@': './',
+            '@dojoengine/torii-wasm': '@dojoengine/torii-wasm/pkg/web',
           },
         },
       ],
     ],
   };
 };
-
