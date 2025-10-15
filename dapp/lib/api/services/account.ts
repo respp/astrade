@@ -30,13 +30,14 @@ export interface CreateUserResponse {
 export class AccountService {
   private getCavosConfig() {
     const CAVOS_BASE_URL = 'https://services.cavos.xyz/api/v1/external';
-    const HASH_SECRET = process.env.EXPO_PUBLIC_CAVOS_APP_ID || '';
+    // Use CAVOS_API_KEY as the org secret for authentication
+    const ORG_SECRET = process.env.EXPO_PUBLIC_CAVOS_API_KEY || process.env.EXPO_PUBLIC_CAVOS_APP_ID || '';
     
-    if (!HASH_SECRET) {
-      throw new Error('Cavos hash secret not configured');
+    if (!ORG_SECRET) {
+      throw new Error('Cavos org secret not configured. Please set EXPO_PUBLIC_CAVOS_API_KEY or EXPO_PUBLIC_CAVOS_APP_ID');
     }
 
-    return { CAVOS_BASE_URL, HASH_SECRET };
+    return { CAVOS_BASE_URL, HASH_SECRET: ORG_SECRET };
   }
 
   // Test API endpoint availability
