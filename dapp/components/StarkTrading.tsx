@@ -19,9 +19,10 @@ import { useStarkTrading } from '../lib/hooks/useStarkTrading';
 import { usePriceStream } from '../lib/hooks/usePriceStream';
 import { useTradingErrorHandler } from '../lib/hooks/useTradingErrorHandler';
 import { createShadow, shadowPresets } from '../lib/platform-styles';
-import { TrendingUp, TrendingDown, Wifi, WifiOff, AlertCircle, BarChart3 } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Wifi, WifiOff, AlertCircle, BarChart3, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { InsufficientBalanceModal } from './InsufficientBalanceModal';
 import { PositionsOrdersModal } from './PositionsOrdersModal';
+import { CandleChart } from './CandleChart';
 import { 
   validateQuantity, 
   formatQuantity, 
@@ -324,39 +325,44 @@ export const StarkTrading: React.FC<StarkTradingProps> = ({ market = 'BTC-USD' }
           </View>
         )}
 
-        {/* Main Content */}
+        {/* Main Content with integrated layout */}
         <View style={styles.mainContent}>
-                  {/* Symbol */}
-        <Text style={styles.symbol}>{market}</Text>
-        <Text style={styles.marketSubtitle}>Trading {getAssetSymbol(market)}</Text>
-          
-          {/* Price Display - Hero Section */}
-          {priceData ? (
-            <View style={styles.priceSection}>
-              <Text style={styles.price}>{formatPrice(priceData.price)}</Text>
-              <View style={[
-                styles.priceChange,
-                { backgroundColor: priceData.changePercent24h >= 0 ? '#10B98120' : '#EF444420' }
-              ]}>
-                {priceData.changePercent24h >= 0 ? (
-                  <TrendingUp size={16} color="#10B981" />
-                ) : (
-                  <TrendingDown size={16} color="#EF4444" />
-                )}
-                <Text style={[
-                  styles.changeText,
-                  { color: priceData.changePercent24h >= 0 ? '#10B981' : '#EF4444' }
+          {/* Candle Chart - Always visible */}
+          <CandleChart
+            market={market}
+            candleType="mark-prices"
+            interval="PT1M"
+          />
+          {/* Symbol and Price Header */}
+          <View style={styles.priceHeader}>
+            {/* Price Display - Hero Section */}
+            {priceData ? (
+              <View style={styles.priceSection}>
+                <Text style={styles.price}>{formatPrice(priceData.price)}</Text>
+                <View style={[
+                  styles.priceChange,
+                  { backgroundColor: priceData.changePercent24h >= 0 ? '#10B98120' : '#EF444420' }
                 ]}>
-                  {formatPercentage(priceData.changePercent24h)}
-                </Text>
+                  {priceData.changePercent24h >= 0 ? (
+                    <TrendingUp size={16} color="#10B981" />
+                  ) : (
+                    <TrendingDown size={16} color="#EF4444" />
+                  )}
+                  <Text style={[
+                    styles.changeText,
+                    { color: priceData.changePercent24h >= 0 ? '#10B981' : '#EF4444' }
+                  ]}>
+                    {formatPercentage(priceData.changePercent24h)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ) : (
-            <View style={styles.priceLoading}>
-              <ActivityIndicator size="large" color="#10B981" />
-              <Text style={styles.loadingText}>Loading price...</Text>
-            </View>
-          )}
+            ) : (
+              <View style={styles.priceLoading}>
+                <ActivityIndicator size="large" color="#10B981" />
+                <Text style={styles.loadingText}>Loading price...</Text>
+              </View>
+            )}
+          </View>
 
           {/* Quantity Input Section */}
           <View style={styles.quantitySection}>
@@ -386,10 +392,9 @@ export const StarkTrading: React.FC<StarkTradingProps> = ({ market = 'BTC-USD' }
               </Text>
             )}
           </View>
-        </View>
 
-        {/* Action Buttons - Bottom */}
-        <View style={styles.actionSection}>
+          {/* Action Buttons - Bottom */}
+          <View style={styles.actionSection}>
           <TouchableOpacity
             style={[
               styles.actionButton, 
@@ -453,6 +458,7 @@ export const StarkTrading: React.FC<StarkTradingProps> = ({ market = 'BTC-USD' }
               />
             </View>
           </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -551,9 +557,10 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: 10,
   },
   symbol: {
     fontSize: 18,
@@ -567,9 +574,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
+  priceHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
   priceSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 0,
   },
   price: {
     fontSize: 64,
@@ -606,13 +618,14 @@ const styles = StyleSheet.create({
   },
   actionSection: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: 5,
     paddingBottom: 40,
-    gap: 16,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 10,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -622,9 +635,10 @@ const styles = StyleSheet.create({
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     width: '100%',
     paddingHorizontal: 20,
+    paddingRight: 60, // Add extra padding on right to avoid icon overlap
   },
   buyButton: {
     backgroundColor: '#10B981',
@@ -634,17 +648,19 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
     marginTop: 8,
+    textAlign: 'left',
+    flex: 1,
   },
   actionButtonIcon: {
-    width: 50,
-    height: 80,
-    opacity: 1,
+    width: 40,
+    height: 60,
+    opacity: 0.8,
     position: 'absolute',
-    right: 20,
-    top: -20,
+    right: 15,
+    top: -10,
   },
   actionButtonDisabled: {
     opacity: 0.6,
@@ -652,8 +668,9 @@ const styles = StyleSheet.create({
   },
   quantitySection: {
     width: '100%',
-    marginTop: 40,
+    marginTop: 5,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   quantityLabel: {
     fontSize: 16,
@@ -702,8 +719,9 @@ const styles = StyleSheet.create({
   estimatedValue: {
     fontSize: 18,
     color: '#B0B0B0',
-    marginTop: 10,
+    marginTop: 0,
     textAlign: 'left',
+    marginBottom: 10,
     width: '90%',
     paddingHorizontal: 20,
   },
