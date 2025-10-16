@@ -15,7 +15,9 @@ import {
   StoryMission, 
   UserMissionProgress, 
   CRYPTO_PRIME_MISSIONS, 
-  DEFI_NEXUS_MISSIONS 
+  DEFI_NEXUS_MISSIONS,
+  VESU_MISSIONS,
+  STARKNET_TOKEN_MISSIONS
 } from '../lib/missions/types';
 import { ordersService } from '../lib/api';
 
@@ -57,6 +59,12 @@ export const MissionsModal: React.FC<MissionsModalProps> = ({
         break;
       case 1:
         planetMissions = DEFI_NEXUS_MISSIONS;
+        break;
+      case 4:
+        planetMissions = VESU_MISSIONS;
+        break;
+      case 5:
+        planetMissions = STARKNET_TOKEN_MISSIONS;
         break;
       default:
         planetMissions = [];

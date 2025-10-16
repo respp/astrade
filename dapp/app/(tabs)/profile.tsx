@@ -1,12 +1,13 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { User, Wallet, Settings, CreditCard, Shield, Trophy, Star, TrendingUp, LogOut, Zap, Target, Rocket, Satellite } from 'lucide-react-native';
+import { User, Wallet, Settings, CreditCard, Shield, Trophy, Star, TrendingUp, LogOut, Zap, Target, Rocket, Satellite, ArrowRight } from 'lucide-react-native';
 import Avatar from '@/components/Avatar';
 import StatItem from '@/components/StatItem';
 import SettingsItem from '@/components/SettingsItem';
 import ScreenWrapper from '@/components/ScreenWrapper';
+import AtomiqWithdrawal from '@/components/AtomiqWithdrawal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useRewards } from '@/lib/hooks/useRewards';
@@ -21,6 +22,7 @@ export default function ProfileAndFinances() {
   const { section } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
   const streakSectionRef = useRef<View>(null);
+  const [showAtomiqWithdrawal, setShowAtomiqWithdrawal] = useState(false);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -170,6 +172,50 @@ export default function ProfileAndFinances() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Atomiq Bitcoin Withdrawal */}
+          <View style={styles.atomiqSection}>
+            <Text style={styles.sectionTitle}>Cross-Chain Withdrawal</Text>
+            <TouchableOpacity 
+              style={styles.atomiqCard}
+              onPress={() => setShowAtomiqWithdrawal(true)}
+            >
+              <View style={styles.atomiqContent}>
+                <View style={styles.atomiqHeader}>
+                  <View style={styles.atomiqIconContainer}>
+                    <Image 
+                      source={require('@/assets/images/logos/atomiq_logo.webp')}
+                      style={styles.atomiqLogo}
+                    />
+                  </View>
+                  <View style={styles.atomiqInfo}>
+                    <Text style={styles.atomiqTitle}>Withdraw to Bitcoin</Text>
+                    <Text style={styles.atomiqSubtitle}>Secured by Bitcoin's Proof of Work</Text>
+                  </View>
+                  <ArrowRight size={20} color="#bf7af0" />
+                </View>
+                <View style={styles.atomiqFeatures}>
+                  <View style={styles.atomiqFeature}>
+                    <Shield size={14} color="#10B981" />
+                    <Text style={styles.atomiqFeatureText}>Zero slippage</Text>
+                  </View>
+                  <View style={styles.atomiqFeature}>
+                    <Zap size={14} color="#10B981" />
+                    <Text style={styles.atomiqFeatureText}>Atomic swaps</Text>
+                  </View>
+                  <View style={styles.atomiqFeature}>
+                    <Target size={14} color="#10B981" />
+                    <Text style={styles.atomiqFeatureText}>5-10 min</Text>
+                  </View>
+                </View>
+                <View style={styles.atomiqDescription}>
+                  <Text style={styles.atomiqDescriptionText}>
+                    Convert your Starknet tokens to Bitcoin using Atomiq Labs' trustless cross-chain protocol
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* Galaxy Explorer Streak */}
@@ -330,6 +376,12 @@ export default function ProfileAndFinances() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </ScreenWrapper>
+
+      {/* Atomiq Withdrawal Modal */}
+      <AtomiqWithdrawal 
+        visible={showAtomiqWithdrawal}
+        onClose={() => setShowAtomiqWithdrawal(false)}
+      />
     </LinearGradient>
   );
 }
@@ -519,6 +571,83 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'monospace',
     textAlign: 'center',
+  },
+  atomiqSection: {
+    paddingHorizontal: 20,
+    marginBottom: 25,
+  },
+  atomiqCard: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(191, 122, 240, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(191, 122, 240, 0.4)',
+    shadowColor: '#bf7af0',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  atomiqContent: {
+    padding: 20,
+  },
+  atomiqHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  atomiqIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(191, 122, 240, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 122, 240, 0.4)',
+  },
+  atomiqLogo: {
+    width: 24,
+    height: 24,
+  },
+  atomiqInfo: {
+    flex: 1,
+  },
+  atomiqTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#bf7af0',
+    marginBottom: 4,
+  },
+  atomiqSubtitle: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  atomiqFeatures: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  atomiqFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  atomiqFeatureText: {
+    fontSize: 11,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  atomiqDescription: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  atomiqDescriptionText: {
+    fontSize: 12,
+    color: '#a0a0a0',
+    lineHeight: 16,
   },
   streakContainer: {
     paddingHorizontal: 20,
