@@ -1,5 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { CavosWallet } from 'cavos-service-native'
+// Import CavosWallet based on environment
+const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined'
+
+let CavosWallet: any
+if (isWeb) {
+  // Use mock for web environment
+  console.log('🌐 [WalletContext] Using CavosWallet MOCK for web environment')
+  const { CavosWallet: MockCavosWallet } = require('@/lib/cavos-mock')
+  CavosWallet = MockCavosWallet
+} else {
+  // Use real implementation for native
+  console.log('📱 [WalletContext] Using CavosWallet REAL for native environment')
+  const { CavosWallet: RealCavosWallet } = require('cavos-service-native')
+  CavosWallet = RealCavosWallet
+}
 import { secureStorage } from '@/lib/secure-storage'
 
 // Tipos de error específicos para mejor manejo
@@ -69,19 +83,32 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         throw new Error('Invalid stored wallet data')
       }
 
-      // Intentar restaurar la wallet
+      // Intentar restaurar la wallet con tokens
       const restoredWallet = new CavosWallet(
         authData.wallet_address,
         authData.network,
         authData.email,
         authData.user_id,
         authData.org_id,
-        process.env.EXPO_PUBLIC_CAVOS_APP_ID!
+        process.env.EXPO_PUBLIC_CAVOS_APP_ID!,
+        authData.accessToken || null,
+        authData.refreshToken || null,
+        authData.expiresIn || 3600
       )
+      
+      console.log('🔄 Restored wallet with tokens:', {
+        hasAccessToken: !!authData.accessToken,
+        hasRefreshToken: !!authData.refreshToken,
+        expiresIn: authData.expiresIn
+      })
 
       // Verificar que la wallet está activa
+      console.log('🔍 [WalletContext] Checking wallet authentication...')
       const isValid = await restoredWallet.isAuthenticated()
+      console.log('🔍 [WalletContext] isAuthenticated result:', isValid)
+      
       if (!isValid) {
+        console.error('❌ [WalletContext] Wallet authentication failed - isAuthenticated returned false')
         throw new Error('Wallet authentication failed')
       }
 
@@ -143,12 +170,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     console.log('🔍 Checking stored wallet...')
     try {
       const storedData = await secureStorage.getItemAsync('cavos_auth_data')
+      console.log('📦 Stored data raw:', storedData) // NUEVO
+      
       if (storedData) {
         const authData = JSON.parse(storedData)
-        console.log('📱 Found stored wallet data')
+        console.log('📱 Found stored wallet data:', authData) // MEJORADO
+        
+        // NUEVO: Verificar estructura de datos
+        console.log('🔍 Auth data structure:', {
+          hasAddress: !!authData.wallet_address,
+          hasNetwork: !!authData.network,
+          hasUserId: !!authData.user_id,
+          hasAccessToken: !!authData.accessToken,
+          hasTimestamp: !!authData.timestamp,
+          timestamp: authData.timestamp,
+          age: Date.now() - authData.timestamp
+        })
         
         if (authData.wallet_address && authData.network && authData.user_id) {
+          console.log('🔄 Attempting wallet reconnection with stored data...')
           await reconnect()
+        } else {
+          console.error('❌ Invalid auth data structure')
         }
       } else {
         console.log('ℹ️ No stored wallet found')
@@ -170,16 +213,23 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         throw new Error(WalletError.INVALID_WALLET)
       }
 
-      // Guardar datos de autenticación
+      console.log('📝 Wallet instance:', walletInstance.toJSON()) // NUEVO
+
+      // Guardar datos de autenticación CON TODOS LOS CAMPOS
       const authData = {
         wallet_address: walletInstance.address,
         network: walletInstance.network,
         email: walletInstance.email,
         user_id: walletInstance.user_id,
         org_id: walletInstance.org_id,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        // NUEVO: Agregar campos de token si existen
+        accessToken: walletInstance.toJSON().accessToken || null,
+        refreshToken: walletInstance.toJSON().refreshToken || null,
+        expiresIn: walletInstance.toJSON().tokenExpiry || 3600,
       }
 
+      console.log('💾 Saving auth data:', authData) // NUEVO
       await secureStorage.setItemAsync('cavos_auth_data', JSON.stringify(authData))
       
       setWallet(walletInstance)
