@@ -1,3 +1,7 @@
+https://github.com/user-attachments/assets/500b5634-09a1-496a-9a48-3af224fafd93
+
+
+
 # 🚀 AsTrade: Conquer the Cosmos with Trading on Starknet! 🌌
 
 **AsTrade** isn’t just a trading app — it’s an **epic space adventure** that transforms perpetual contract trading into an accessible, educational, and addictive experience. Built on **Starknet** and powered by the **Extended API**, AsTrade allows anyone with a smartphone to explore markets, complete missions, and build a galactic financial empire.
