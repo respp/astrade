@@ -7,7 +7,7 @@ import Avatar from '@/components/Avatar';
 import StatItem from '@/components/StatItem';
 import SettingsItem from '@/components/SettingsItem';
 import ScreenWrapper from '@/components/ScreenWrapper';
-import AtomiqWithdrawal from '@/components/AtomiqWithdrawal';
+// import AtomiqWithdrawal from '@/components/AtomiqWithdrawal'; // TODO: Create this component
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useRewards } from '@/lib/hooks/useRewards';
@@ -378,10 +378,12 @@ export default function ProfileAndFinances() {
       </ScreenWrapper>
 
       {/* Atomiq Withdrawal Modal */}
+      {/* TODO: Create AtomiqWithdrawal component
       <AtomiqWithdrawal 
         visible={showAtomiqWithdrawal}
         onClose={() => setShowAtomiqWithdrawal(false)}
       />
+      */}
     </LinearGradient>
   );
 }
