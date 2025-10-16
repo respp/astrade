@@ -1,13 +1,81 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, Zap, Shield, Star } from 'lucide-react-native';
+import { createShadow, shadowPresets } from '../lib/platform-styles';
+import { useAuth } from '../contexts/AuthContext';
 
-export default function X10TradingSetup() {
+interface X10TradingSetupProps {
+  style?: any;
+}
+
+export default function X10TradingSetup({ style }: X10TradingSetupProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { backendUserId, x10Credentials, setupX10Trading } = useAuth();
+
+  const handleSetupX10 = async () => {
+    if (!backendUserId) {
+      Alert.alert('Error', 'No backend user ID found. Please log in first.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      console.log('🚀 Manual X10 trading setup initiated');
+      const result = await setupX10Trading(backendUserId);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success!',
+          'X10 trading account has been set up successfully. You can now access perpetual trading features.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Setup Failed',
+          `Failed to setup X10 trading: ${result.error}`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Manual X10 setup failed:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred during X10 setup.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckStatus = () => {
+    if (x10Credentials) {
+      Alert.alert(
+        'X10 Trading Status',
+        `✅ X10 trading is set up!\n\nL2 Vault: ${x10Credentials.l2_vault}\nEthereum Address: ${x10Credentials.eth_address}\nEnvironment: ${x10Credentials.environment}`,
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert(
+        'X10 Trading Status',
+        '❌ X10 trading is not set up yet. Click "Setup X10 Trading" to get started.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <TouchableOpacity 
         style={styles.header}
         onPress={() => setIsExpanded(!isExpanded)}
@@ -24,6 +92,34 @@ export default function X10TradingSetup() {
 
       {isExpanded && (
         <View style={styles.content}>
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Status:</Text>
+            <Text style={[
+              styles.statusValue,
+              { color: x10Credentials ? '#10B981' : '#EF4444' }
+            ]}>
+              {x10Credentials ? '✅ Ready' : '❌ Not Set Up'}
+            </Text>
+          </View>
+
+          {x10Credentials && (
+            <View style={styles.credentialsContainer}>
+              <Text style={styles.credentialsTitle}>Account Details:</Text>
+              <Text style={styles.credentialItem}>
+                L2 Vault: {x10Credentials.l2_vault}
+              </Text>
+              <Text style={styles.credentialItem}>
+                ETH Address: {x10Credentials.eth_address}
+              </Text>
+              <Text style={styles.credentialItem}>
+                Environment: {x10Credentials.environment}
+              </Text>
+              <Text style={styles.credentialItem}>
+                Generated from Zero: {x10Credentials.generated_from_zero ? 'Yes' : 'No'}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.features}>
             <View style={styles.featureItem}>
               <TrendingUp size={20} color="#10B981" />
@@ -40,18 +136,53 @@ export default function X10TradingSetup() {
           </View>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton}>
+            <TouchableOpacity
+              style={styles.statusButton}
+              onPress={handleCheckStatus}
+              disabled={loading}
+            >
+              <Text style={styles.statusButtonText}>Check Status</Text>
+            </TouchableOpacity>
+
+            {!x10Credentials && (
               <LinearGradient
                 colors={['#bf7af0', '#8b5cf6']}
-                style={styles.buttonGradient}
+                style={[styles.primaryButton, createShadow(shadowPresets.medium)]}
               >
-                <Text style={styles.buttonText}>Start Trading</Text>
+                <TouchableOpacity
+                  style={styles.buttonGradient}
+                  onPress={handleSetupX10}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>Setup X10 Trading</Text>
+                  )}
+                </TouchableOpacity>
               </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Learn More</Text>
-            </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoTitle}>What is X10 Trading?</Text>
+            <Text style={styles.infoText}>
+              X10 is a decentralized perpetual trading protocol that allows you to trade
+              crypto assets with leverage. Our integration automatically generates a
+              secure trading account for you with testnet funds.
+            </Text>
+            <Text style={styles.infoText}>
+              • Automatic account generation from zero
+            </Text>
+            <Text style={styles.infoText}>
+              • Secure credential storage
+            </Text>
+            <Text style={styles.infoText}>
+              • Testnet trading environment
+            </Text>
+            <Text style={styles.infoText}>
+              • Ready for perpetual trading
+            </Text>
           </View>
 
           <View style={styles.warning}>
@@ -107,6 +238,39 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 0,
   },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginRight: 8,
+  },
+  statusValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  credentialsContainer: {
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  credentialsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  credentialItem: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    marginBottom: 4,
+    fontFamily: 'monospace',
+  },
   features: {
     marginBottom: 20,
     gap: 12,
@@ -126,33 +290,52 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
   },
-  primaryButton: {
+  statusButton: {
     flex: 1,
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  statusButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  primaryButton: {
+    flex: 2,
+    borderRadius: 12,
   },
   buttonGradient: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 122, 240, 0.3)',
-    alignItems: 'center',
+  infoContainer: {
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
-  secondaryButtonText: {
-    color: '#bf7af0',
+  infoTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    lineHeight: 20,
+    marginBottom: 8,
   },
   warning: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
