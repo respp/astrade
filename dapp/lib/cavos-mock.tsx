@@ -37,6 +37,17 @@ export class CavosWallet {
     refreshToken?: string | null,
     tokenExpiry?: number | null
   ) {
+    console.log('🏗️ [CavosWallet] Constructor called with:', {
+      address,
+      network,
+      email,
+      user_id,
+      org_id,
+      accessToken: !!accessToken,
+      refreshToken: !!refreshToken,
+      tokenExpiry
+    })
+    
     this.address = address
     this.network = network
     this.email = email
@@ -46,6 +57,12 @@ export class CavosWallet {
     this.accessToken = accessToken
     this.refreshToken = refreshToken
     this.tokenExpiry = tokenExpiry
+    
+    console.log('🏗️ [CavosWallet] Instance created with tokens:', {
+      hasAccessToken: !!this.accessToken,
+      hasRefreshToken: !!this.refreshToken,
+      tokenExpiry: this.tokenExpiry
+    })
   }
 
   async setAuthenticationData(authData: AuthData): Promise<void> {
@@ -79,27 +96,50 @@ export class CavosWallet {
 
   async isAuthenticated(): Promise<boolean> {
     try {
+      console.log('🔍 [CavosWallet] Checking authentication status...')
+      
       if (!this.accessToken) {
+        console.log('🔍 [CavosWallet] No access token in memory, loading from storage...')
         await this.loadStoredAuthData()
       }
       
+      console.log('🔍 [CavosWallet] Auth state:', {
+        hasAccessToken: !!this.accessToken,
+        hasTokenExpiry: !!this.tokenExpiry,
+        tokenExpiry: this.tokenExpiry
+      })
+      
       if (!this.accessToken || !this.tokenExpiry) {
+        console.log('❌ [CavosWallet] No token or expiry found')
         return false
       }
 
-      // Check if token is still valid (simplified check)
+      // Check if token is still valid
       const now = Date.now()
       const storedData = await secureStorage.getItemAsync('cavos_auth_data')
-      if (storedData) {
-        const authData: AuthData = JSON.parse(storedData)
-        const tokenAge = now - authData.timestamp
-        const tokenValidDuration = authData.expiresIn * 1000 // Convert to milliseconds
-        return tokenAge < tokenValidDuration
+      
+      if (!storedData) {
+        console.log('❌ [CavosWallet] No stored auth data')
+        return false
       }
-
-      return false
+      
+      const authData: AuthData = JSON.parse(storedData)
+      console.log('🔍 [CavosWallet] Stored auth data:', {
+        timestamp: authData.timestamp,
+        expiresIn: authData.expiresIn,
+        age: now - authData.timestamp,
+        ageInSeconds: Math.floor((now - authData.timestamp) / 1000),
+        expiresInSeconds: authData.expiresIn
+      })
+      
+      const tokenAge = now - authData.timestamp
+      const tokenValidDuration = authData.expiresIn * 1000 // Convert to milliseconds
+      const isValid = tokenAge < tokenValidDuration
+      
+      console.log(isValid ? '✅ [CavosWallet] Token is valid' : '❌ [CavosWallet] Token expired')
+      return isValid
     } catch (error) {
-      console.error('Failed to check authentication status:', error)
+      console.error('❌ [CavosWallet] Failed to check authentication status:', error)
       return false
     }
   }
