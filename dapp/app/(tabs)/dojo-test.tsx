@@ -1,23 +1,24 @@
-import { View, Text, Button, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Button, StyleSheet, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useDojo } from '@/lib/hooks/useDojo';
 import { useWallet } from '@/contexts/WalletContext';
 import { useState } from 'react';
+import { secureStorage } from '@/lib/secure-storage';
 
 export default function DojoTestScreen() {
-  const { 
-    isConnected, 
-    isLoading, 
-    error, 
+  const {
+    isConnected,
+    isLoading,
+    error,
     connectionState,
     executeSystemCall,
     queryEntities,
     findContract,
-    reconnect,
+    reconnect: reconnectDojo,
     config,
     manifest
   } = useDojo();
   
-  const { wallet, isAuthenticated } = useWallet();
+  const { wallet, isAuthenticated, logout, reconnect } = useWallet();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -179,7 +180,7 @@ export default function DojoTestScreen() {
           <View style={styles.errorContainer}>
             <Text style={styles.errorLabel}>Error:</Text>
             <Text style={styles.errorText}>{error}</Text>
-            <Button title="🔄 Reintentar" onPress={reconnect} color="#e74c3c" />
+                    <Button title="🔄 Reintentar" onPress={reconnectDojo} color="#e74c3c" />
           </View>
         )}
       </View>
@@ -198,22 +199,158 @@ export default function DojoTestScreen() {
         </View>
       )}
 
-      {/* Debug Info */}
-      <View style={styles.debugCard}>
-        <Text style={styles.cardTitle}>🔧 Debug Info</Text>
-        <Text style={styles.label}>World:</Text>
-        <Text style={styles.debugText}>{config.worldAddress.slice(0, 20)}...</Text>
-        <Text style={styles.label}>RPC:</Text>
-        <Text style={styles.debugText}>{config.rpcUrl}</Text>
-        <Text style={styles.label}>Torii:</Text>
-        <Text style={styles.debugText}>{config.toriiUrl}</Text>
-        <Text style={styles.label}>Namespace:</Text>
-        <Text style={styles.debugText}>{config.namespace}</Text>
-        <Text style={styles.label}>Manifest:</Text>
-        <Text style={styles.debugText}>{manifest ? '✅ Loaded' : '❌ Missing'}</Text>
-        <Text style={styles.label}>Wallet Auth:</Text>
-        <Text style={styles.debugText}>{isAuthenticated ? '✅ Connected' : '❌ Disconnected'}</Text>
-      </View>
+              {/* Debug Info */}
+              <View style={styles.debugCard}>
+                <Text style={styles.cardTitle}>🔧 Debug Info</Text>
+                <Text style={styles.label}>World:</Text>
+                <Text style={styles.debugText}>{config.worldAddress.slice(0, 20)}...</Text>
+                <Text style={styles.label}>RPC:</Text>
+                <Text style={styles.debugText}>{config.rpcUrl}</Text>
+                <Text style={styles.label}>Torii:</Text>
+                <Text style={styles.debugText}>{config.toriiUrl}</Text>
+                <Text style={styles.label}>Namespace:</Text>
+                <Text style={styles.debugText}>{config.namespace}</Text>
+                <Text style={styles.label}>Manifest:</Text>
+                <Text style={styles.debugText}>{manifest ? '✅ Loaded' : '❌ Missing'}</Text>
+                <Text style={styles.label}>Wallet Auth:</Text>
+                <Text style={styles.debugText}>{isAuthenticated ? '✅ Connected' : '❌ Disconnected'}</Text>
+              </View>
+
+              {/* Verificación de Wallet */}
+              <View style={styles.walletCheckCard}>
+                <Text style={styles.cardTitle}>🔍 Verificación de Wallet</Text>
+                
+                <TouchableOpacity 
+                  onPress={async () => {
+                    try {
+                      console.log('=== INICIANDO VERIFICACIÓN COMPLETA DE WALLET ===')
+                      
+                      // 0. Test directo de secureStorage
+                      console.log('🧪 Testing secureStorage directly...')
+                      await secureStorage.setItemAsync('test_key', 'test_value')
+                      const testValue = await secureStorage.getItemAsync('test_key')
+                      console.log('🧪 secureStorage test result:', testValue)
+                      
+                      // 1. Verificar storage
+                      const storedData = await secureStorage.getItemAsync('cavos_auth_data')
+                      console.log('📦 Raw stored data:', storedData)
+                      
+                      if (storedData) {
+                        const parsed = JSON.parse(storedData)
+                        console.log('📱 Parsed auth data:', parsed)
+                        
+                        // 2. Verificar edad del token
+                        const age = Date.now() - parsed.timestamp
+                        console.log('⏰ Token age:', {
+                          ageMs: age,
+                          ageSeconds: Math.floor(age / 1000),
+                          ageMinutes: Math.floor(age / 60000),
+                          expiresIn: parsed.expiresIn,
+                          isExpired: age > (parsed.expiresIn * 1000)
+                        })
+                      }
+                      
+                      // 3. Verificar estado del wallet
+                      if (wallet) {
+                        console.log('👛 Wallet instance:', wallet.getWalletInfo())
+                        const isAuth = await wallet.isAuthenticated()
+                        console.log('🔐 Wallet isAuthenticated():', isAuth)
+                      } else {
+                        console.log('❌ No wallet instance')
+                      }
+                      
+                      // 4. Verificar contextos
+                      console.log('📊 Context states:', {
+                        isAuthenticated,
+                        hasWallet: !!wallet,
+                        walletAddress: wallet?.address,
+                        dojoConnected: isConnected
+                      })
+                      
+                      Alert.alert('Check Complete', 'Revisa la consola para ver los detalles')
+                    } catch (err) {
+                      console.error('Error checking wallet:', err)
+                      Alert.alert('Error', String(err))
+                    }
+                  }}
+                  style={styles.checkButton}
+                >
+                  <Text style={styles.checkButtonText}>🔍 Verificar Estado Completo</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.statusGrid}>
+                  <Text>WalletContext Auth: {isAuthenticated ? '✅' : '❌'}</Text>
+                  <Text>Wallet Instance: {wallet ? '✅' : '❌'}</Text>
+                  <Text>Wallet Address: {wallet?.address ? '✅' : '❌'}</Text>
+                </View>
+
+                <TouchableOpacity 
+                  onPress={async () => {
+                    try {
+                      console.log('🧪 Simulating mock login...')
+                      
+                      // Simular datos de login como los que guardaría el mock
+                      const mockAuthData = {
+                        wallet_address: '0x' + Math.random().toString(16).slice(2, 42),
+                        network: 'starknet-sepolia',
+                        email: 'test@example.com',
+                        user_id: 'test_user_' + Math.random().toString(16).slice(2, 8),
+                        org_id: 'test_org_' + Math.random().toString(16).slice(2, 8),
+                        timestamp: Date.now(),
+                        accessToken: 'mock_access_token_' + Math.random().toString(16).slice(2, 16),
+                        refreshToken: 'mock_refresh_token_' + Math.random().toString(16).slice(2, 16),
+                        expiresIn: 3600,
+                      }
+                      
+                      console.log('💾 Saving mock auth data:', mockAuthData)
+                      await secureStorage.setItemAsync('cavos_auth_data', JSON.stringify(mockAuthData))
+                      
+                      // Verificar que se guardó
+                      const savedData = await secureStorage.getItemAsync('cavos_auth_data')
+                      console.log('✅ Verification - saved data:', savedData ? 'SUCCESS' : 'FAILED')
+                      
+                      Alert.alert('Mock Login Complete', 'Mock auth data saved. Now try "Verificar Estado Completo" again.')
+                    } catch (err) {
+                      console.error('Error in mock login:', err)
+                      Alert.alert('Error', String(err))
+                    }
+                  }}
+                  style={[styles.checkButton, { backgroundColor: '#28a745' }]}
+                >
+                  <Text style={[styles.checkButtonText, { color: '#fff' }]}>🧪 Simular Login Mock</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={async () => {
+                    try {
+                      console.log('🔄 Forcing wallet reconnection...')
+                      await reconnect()
+                      Alert.alert('Reconnect Complete', 'Check the console for reconnection logs.')
+                    } catch (err) {
+                      console.error('Reconnection failed:', err)
+                      Alert.alert('Error', String(err))
+                    }
+                  }}
+                  style={[styles.checkButton, { backgroundColor: '#17a2b8' }]}
+                >
+                  <Text style={[styles.checkButtonText, { color: '#fff' }]}>🔄 Forzar Reconexión</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={async () => {
+                    try {
+                      await secureStorage.deleteItemAsync('cavos_auth_data')
+                      await logout() // del useWallet
+                      Alert.alert('Reset Complete', 'Wallet data cleared. Please login again.')
+                    } catch (err) {
+                      Alert.alert('Error', String(err))
+                    }
+                  }}
+                  style={[styles.checkButton, { backgroundColor: '#dc3545' }]}
+                >
+                  <Text style={[styles.checkButtonText, { color: '#fff' }]}>🗑️ Reset Wallet Data</Text>
+                </TouchableOpacity>
+              </View>
 
       {/* Controles */}
       <View style={styles.controlsCard}>
@@ -513,6 +650,30 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: '#90caf9',
     fontFamily: 'monospace',
+  },
+  walletCheckCard: {
+    backgroundColor: '#fff3cd',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ffc107',
+  },
+  checkButton: {
+    backgroundColor: '#ffc107',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  checkButtonText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  statusGrid: {
+    marginTop: 10,
+    gap: 5,
   },
 });
 
