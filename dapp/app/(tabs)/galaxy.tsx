@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronRight, Star, Trophy, Target, Gift, Zap, Crown, Grid3X3, Orbit } from 'lucide-react-native';
@@ -19,11 +19,15 @@ const MAP_VIEW_CONFIG = {
     { x: width * 0.7, y: height * 0.25 },  // DeFi Nexus  
     { x: width * 0.4, y: height * 0.45 },  // NFT Galaxy
     { x: width * 0.8, y: height * 0.6 },   // DAO Constellation
+    { x: width * 0.15, y: height * 0.7 },  // Vesu Planet
+    { x: width * 0.6, y: height * 0.8 },   // Starknet Token
   ],
   pathConnections: [
     { from: 0, to: 1 },
     { from: 1, to: 2 },
     { from: 2, to: 3 },
+    { from: 3, to: 4 }, // Connection to Vesu Planet
+    { from: 4, to: 5 }, // Connection to Starknet Token
   ],
 };
 
@@ -112,6 +116,49 @@ const galaxyPlanets = [
       { id: 12, name: 'Community Engagement', description: 'Participate in DAO discussions', progress: 1, total: 3, completed: false, reward: '70 XP' },
     ],
   },
+  {
+    id: 5,
+    name: 'Vesu Planet',
+    type: 'Investment Hub',
+    level: 'Advanced',
+    color: '#FF6B35',
+    description: 'Revolutionary investment platform where traditional finance meets DeFi',
+    progress: 0,
+    totalMissions: 5,
+    completedMissions: 0,
+    imageUrl: require('@/assets/images/logos/logo vesu.png'),
+    achievements: [
+      { id: 13, name: 'Vesu Pioneer', description: 'Make your first Vesu investment', completed: false, reward: '500 XP + Vesu Pioneer Title' },
+      { id: 14, name: 'Portfolio Master', description: 'Diversify across Vesu products', completed: false, reward: '750 XP + Portfolio Badge NFT' },
+      { id: 15, name: 'Vesu Master', description: 'Achieve mastery in Vesu investments', completed: false, reward: '2500 XP + Master Crown NFT' },
+    ],
+    missions: [
+      { id: 13, name: 'Initial Investment', description: 'Make first Vesu investment ($50+)', progress: 0, total: 1, completed: false, reward: '500 XP + 100 Coins' },
+      { id: 14, name: 'Portfolio Diversification', description: 'Invest in 3 Vesu products', progress: 0, total: 3, completed: false, reward: '750 XP + Badge NFT' },
+      { id: 15, name: 'Yield Optimization', description: 'Generate $100+ profit from Vesu', progress: 0, total: 1, completed: false, reward: '1000 XP + 200 Coins' },
+    ],
+  },
+  {
+    id: 6,
+    name: 'Starknet Token',
+    type: 'Layer 2 Hub',
+    level: 'Expert',
+    color: '#FF6B35',
+    description: 'Advanced Layer 2 scaling solutions with high-yield lending pools',
+    progress: 0,
+    totalMissions: 5,
+    completedMissions: 0,
+    achievements: [
+      { id: 16, name: 'Starknet Pioneer', description: 'Invest in Starknet Genesis pool', completed: false, reward: '600 XP + Starknet Pioneer Title' },
+      { id: 17, name: 'USDT Lender', description: 'Master Tether USD lending', completed: false, reward: '800 XP + USDT Lender Badge NFT' },
+      { id: 18, name: 'Starknet Champion', description: 'Become Starknet ecosystem champion', completed: false, reward: '3000 XP + Champion Crown NFT' },
+    ],
+    missions: [
+      { id: 16, name: 'Genesis Supply', description: 'Supply $100+ to Starknet Genesis pool', progress: 0, total: 1, completed: false, reward: '600 XP + 150 Coins' },
+      { id: 17, name: 'Tether Lending', description: 'Lend $200+ USDT to Vesu protocol', progress: 0, total: 2, completed: false, reward: '800 XP + 200 Coins' },
+      { id: 18, name: 'USDC Mega Pool', description: 'Master USD Coin lending pool', progress: 0, total: 2, completed: false, reward: '1200 XP + 300 Coins' },
+    ],
+  },
 ];
 
 // Componente para estrellas animadas de fondo
@@ -169,7 +216,7 @@ const AnimatedStar = ({ star }: { star: any }) => {
 };
 
 import { missionEngine } from '../../lib/missions/engine';
-import { CRYPTO_PRIME_MISSIONS, DEFI_NEXUS_MISSIONS } from '../../lib/missions/types';
+import { CRYPTO_PRIME_MISSIONS, DEFI_NEXUS_MISSIONS, VESU_MISSIONS, STARKNET_TOKEN_MISSIONS } from '../../lib/missions/types';
 
 // Estados de progreso de planetas
 enum PlanetState {
@@ -187,7 +234,9 @@ const getPlanetState = (planetIndex: number): PlanetState => {
     CRYPTO_PRIME_MISSIONS, // Planet 0
     DEFI_NEXUS_MISSIONS,   // Planet 1
     [],                     // Planet 2 - NFT Galaxy (agregar después)
-    []                      // Planet 3 - DAO Constellation (agregar después)
+    [],                     // Planet 3 - DAO Constellation (agregar después)
+    VESU_MISSIONS,         // Planet 4 - Vesu Planet
+    STARKNET_TOKEN_MISSIONS // Planet 5 - Starknet Token Planet
   ];
 
   if (planetIndex === 0) {
@@ -220,6 +269,42 @@ const getPlanetState = (planetIndex: number): PlanetState => {
     ).length >= DEFI_NEXUS_MISSIONS.length;
     
     return defiNexusCompleted ? PlanetState.COMPLETED : PlanetState.UNLOCKED;
+  }
+  
+  if (planetIndex === 4) {
+    // Vesu Planet - requires completing DeFi Nexus
+    const completedMissions = missionEngine.getUserCompletedMissions(userId);
+    const defiNexusCompleted = completedMissions.filter(progress => 
+      progress.missionId.startsWith('dn_')
+    ).length >= DEFI_NEXUS_MISSIONS.length;
+    
+    if (!defiNexusCompleted) {
+      return PlanetState.LOCKED;
+    }
+    
+    const vesuCompleted = completedMissions.filter(progress => 
+      progress.missionId.startsWith('vesu_')
+    ).length >= VESU_MISSIONS.length;
+    
+    return vesuCompleted ? PlanetState.COMPLETED : PlanetState.UNLOCKED;
+  }
+  
+  if (planetIndex === 5) {
+    // Starknet Token Planet - requires completing Vesu Planet
+    const completedMissions = missionEngine.getUserCompletedMissions(userId);
+    const vesuCompleted = completedMissions.filter(progress => 
+      progress.missionId.startsWith('vesu_')
+    ).length >= VESU_MISSIONS.length;
+    
+    if (!vesuCompleted) {
+      return PlanetState.LOCKED;
+    }
+    
+    const starknetCompleted = completedMissions.filter(progress => 
+      progress.missionId.startsWith('starknet_')
+    ).length >= STARKNET_TOKEN_MISSIONS.length;
+    
+    return starknetCompleted ? PlanetState.COMPLETED : PlanetState.UNLOCKED;
   }
   
   // Planetas posteriores aún no implementados
@@ -311,6 +396,19 @@ const MapPlanet = ({ planet, index, onPress }: { planet: any; index: number; onP
             getInteractiveStyle()
           ]}
         >
+          {/* Custom planet image if available */}
+          {planet.imageUrl && state !== PlanetState.LOCKED && (
+            <Image
+              source={planet.imageUrl}
+              style={{
+                width: MAP_VIEW_CONFIG.planetSize * 0.8,
+                height: MAP_VIEW_CONFIG.planetSize * 0.8,
+                borderRadius: MAP_VIEW_CONFIG.planetSize * 0.4,
+              }}
+              resizeMode="contain"
+            />
+          )}
+          
           {/* Estado visual */}
           {state === PlanetState.LOCKED && (
             <View style={{

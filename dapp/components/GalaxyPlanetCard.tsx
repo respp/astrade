@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight, Star, Target } from 'lucide-react-native';
 import { createShadow, shadowPresets } from '@/lib/platform-styles';
@@ -14,6 +14,7 @@ interface Planet {
   progress: number;
   totalMissions: number;
   completedMissions: number;
+  imageUrl?: string; // Optional image URL for custom planet logos
 }
 
 interface GalaxyPlanetCardProps {
@@ -43,10 +44,18 @@ export default function GalaxyPlanetCard({ planet, onPress }: GalaxyPlanetCardPr
           style={styles.planet}
         >
           <View style={styles.planetGlow} />
-          <View style={styles.planetSurface}>
-            <View style={styles.crater1} />
-            <View style={styles.crater2} />
-          </View>
+          {planet.imageUrl ? (
+            <Image
+              source={{ uri: planet.imageUrl }}
+              style={styles.planetImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.planetSurface}>
+              <View style={styles.crater1} />
+              <View style={styles.crater2} />
+            </View>
+          )}
         </LinearGradient>
         
         <View style={[styles.levelBadge, { backgroundColor: levelColor }]}>
@@ -146,6 +155,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
     bottom: 15,
     right: 20,
+  },
+  planetImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
   },
   levelBadge: {
     position: 'absolute',
