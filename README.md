@@ -13,7 +13,7 @@
 
 ---
 
-## 🎮 v0 Features
+## 🎮 Features
 
 You can already experience:
 
